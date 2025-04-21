@@ -14,16 +14,24 @@ find_package(OpenMP REQUIRED)
 # Compiler optimization
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     if(MSVC)
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /O2 /fp:fast")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /O2 /fp:fast /GL /openmp")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LTCG")
     else()
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -ffast-math -march=native")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -ffast-math -march=native -flto -fopenmp")
     endif()
 endif()
 
 # Static compilation options
 option(BUILD_STATIC "Build as static executable" ON)
 if(BUILD_STATIC)
-    set(CMAKE_EXE_LINKER_FLAGS "-static -static-libgcc -static-libstdc++")
+    if(MSVC)
+        # Use /MT for static runtime linking
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT")
+        set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd")
+    else()
+        # Use GCC/Clang specific static linking flags
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
+    endif()
 endif()
 
 # Add include directories
@@ -34,6 +42,9 @@ add_executable(pi_calculator
     src/pi.c
     main.c
 )
+
+# Add include directories
+target_include_directories(pi_calculator PRIVATE include)
 
 # Link libraries
 target_link_libraries(pi_calculator

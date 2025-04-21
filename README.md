@@ -23,7 +23,7 @@
 
    - On Linux:
      ```bash
-     sudo apt-get install libgmp-dev cmake
+     sudo apt-get install libgmp-dev cmake build-essential
      ```
 
    - On macOS:
@@ -36,6 +36,11 @@
      pacman -S mingw-w64-x86_64-gmp mingw-w64-x86_64-cmake
      ```
 
+   - On Windows (using Visual Studio):
+     1. Install [Visual Studio](https://visualstudio.microsoft.com/) with the "Desktop development with C++" workload.
+     2. Install [CMake](https://cmake.org/download/).
+     3. Download and build the GMP library manually or use a precompiled version.
+
 2. **Clone the Repository**
    ```bash
    git clone <repository-url>
@@ -43,19 +48,63 @@
    ```
 
 3. **Generate Build Files**
-    ```bash
-    cmake -S . -B build
-    ```
+   - On Linux/macOS:
+     ```bash
+     cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC=ON
+     ```
+
+   - On Windows (using MSYS2):
+     ```bash
+     cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC=ON
+     ```
+
+   - On Windows (using Visual Studio):
+     ```bash
+     cmake -S . -B build -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC=ON
+     ```
 
 4. **Build the Project**
-    ```bash
-    cmake --build build
-    ```
+   - On Linux/macOS:
+     ```bash
+     cmake --build build
+     ```
+
+   - On Windows (using MSYS2):
+     ```bash
+     cmake --build build
+     ```
+
+   - On Windows (using Visual Studio):
+     ```bash
+     cmake --build build --config Release
+     ```
 
 5. **Run the Program**
-    ```bash
-    ./build/pi_calculator
-    ```
+   - On Linux/macOS:
+     ```bash
+     ./build/pi_calculator
+     ```
+
+   - On Windows:
+     ```bash
+     .\build\Release\pi_calculator.exe
+     ```
+
+---
+
+### Notes
+
+- **Static Linking**:
+  - By default, the project is configured to build a static executable (`BUILD_STATIC=ON`).
+  - On Windows with MSVC, the `/MT` flag is used for static runtime linking.
+  - On Linux/macOS, `-static`, `-static-libgcc`, and `-static-libstdc++` are used for static linking.
+
+- **Debug Build**:
+  - To build in debug mode, replace `-DCMAKE_BUILD_TYPE=Release` with `-DCMAKE_BUILD_TYPE=Debug`.
+
+- **Dependencies**:
+  - Ensure that the GMP library is correctly installed and accessible by the compiler.
+  - OpenMP support is required for multithreaded computation.
 
 ## Usage
 
