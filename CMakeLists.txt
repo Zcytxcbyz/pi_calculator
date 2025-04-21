@@ -34,9 +34,6 @@ if(BUILD_STATIC)
     endif()
 endif()
 
-# Add include directories
-include_directories(${CMAKE_SOURCE_DIR}/include)
-
 # Add executable file
 add_executable(pi_calculator
     src/pi.c
