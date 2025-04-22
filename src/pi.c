@@ -131,10 +131,14 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         buffer[buffer_index++] = pi_str[i];
         if (i % 100 == 0 || i == digits) {
             buffer[buffer_index++] = '\n';
-            fputs(buffer, file);
-            buffer_index = 0;
         } else if (i % 10 == 0) {
             buffer[buffer_index++] = ' ';
+        }
+
+        if (buffer_index >= sizeof(buffer) - 2 || i == digits) {
+            buffer[buffer_index] = '\0';
+            fputs(buffer, file);
+            buffer_index = 0;
         }
     }
 
