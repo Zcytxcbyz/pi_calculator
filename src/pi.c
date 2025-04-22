@@ -31,8 +31,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
     double start_time = omp_get_wtime();
 
     mpf_t S_private;
-    mpf_init(S_private);
-    mpf_set_ui(S_private, 0);
+    mpf_init_set_ui(S_private, 0);
 
     #pragma omp parallel private(K, six_k, three_k, k_fact, three_k_fact, six_k_fact, term, temp, M, L, X)
     {
@@ -137,7 +136,8 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         buffer[buffer_index++] = pi_str[i];
         if (i % 100 == 0 || i == digits) {
             buffer[buffer_index++] = '\n';
-            fwrite(buffer, 1, buffer_index, file);
+            //fwrite(buffer, 1, buffer_index, file);
+            fputs(buffer, file);
             buffer_index = 0;
         } else if (i % 10 == 0) {
             buffer[buffer_index++] = ' ';
