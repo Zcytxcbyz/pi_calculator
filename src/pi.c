@@ -28,8 +28,6 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
     // Set the number of OpenMP threads
     omp_set_num_threads(num_threads);
 
-    double start_time = omp_get_wtime();
-
     mpf_t S_private;
     mpf_init_set_ui(S_private, 0);
 
@@ -100,9 +98,6 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
     // Calculate PI = C / S
     mpf_div(pi, C, S);
 
-    double end_time = omp_get_wtime();
-    printf("Computation time: %.2f seconds\n", end_time - start_time);
-
     // Clean up variables
     mpf_clears(C, M, L, X, S, term, temp, NULL);
     mpz_clears(K, six_k, three_k, k_fact, three_k_fact, six_k_fact, NULL);
@@ -136,7 +131,6 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         buffer[buffer_index++] = pi_str[i];
         if (i % 100 == 0 || i == digits) {
             buffer[buffer_index++] = '\n';
-            //fwrite(buffer, 1, buffer_index, file);
             fputs(buffer, file);
             buffer_index = 0;
         } else if (i % 10 == 0) {
