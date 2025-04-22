@@ -42,14 +42,14 @@ int main(int argc, char* argv[]) {
     mpf_t pi;
     mpf_init2(pi, (digits + 2) * log2(10)); // Pre allocate sufficient precision
 
-    clock_t start = clock();
+    double start_time = omp_get_wtime();
     calculate_pi(pi, digits, num_threads);
-    clock_t end = clock();
+    double end_time = omp_get_wtime();
 
-    double computation_time = (double)(end - start) / CLOCKS_PER_SEC;
-    printf("Total time (including I/O): %.2f seconds\n", computation_time);
+    double total_time = end_time - start_time;
+    printf("Total time: %.2f seconds\n", total_time);
 
-    write_pi_to_file(pi, digits, output_file, computation_time);
+    write_pi_to_file(pi, digits, output_file, total_time);
     printf("Result written to %s\n", output_file);
 
     mpf_clear(pi);

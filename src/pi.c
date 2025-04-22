@@ -4,11 +4,6 @@
 #include <stdlib.h>
 #include <omp.h>
 
-// Factorial calculation (using GMP's mpz_fac_ui is more efficient)
-void factorial(mpz_t result, unsigned long n) {
-    mpz_fac_ui(result, n);
-}
-
 // Chudnovsky algorithm calculates PI
 void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
     mpf_set_default_prec((digits + 2) * log2(10)); // Set sufficient precision
@@ -41,33 +36,31 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
 
     #pragma omp parallel private(K, six_k, three_k, k_fact, three_k_fact, six_k_fact, term, temp, M, L, X)
     {
-        mpf_t S_local;
+        mpf_t S_local, term, temp_f;
+        mpz_t temp, M, L, X, K, six_k, three_k, k_fact, three_k_fact, six_k_fact;
+
         mpf_init(S_local);
         mpf_set_ui(S_local, 0);
+        mpf_inits(term, temp_f, NULL);
+        mpz_inits(temp, M, L, X, K, six_k, three_k, k_fact, three_k_fact, six_k_fact, NULL);
 
-        #pragma omp for
+        #pragma omp for schedule(dynamic, 10)
         for (unsigned long k = 0; k < iterations; k++) {
-            mpf_t term, temp_f;
-            mpz_t temp, M, L, X, K, six_k, three_k, k_fact, three_k_fact, six_k_fact;
-
-            mpf_inits(term, temp_f, NULL);
-            mpz_inits(temp, M, L, X, K, six_k, three_k, k_fact, three_k_fact, six_k_fact, NULL);
-
             mpz_set_ui(K, k);
 
             // Calculate M = (6k)! / ((3k)! * (k!)^3)
-            factorial(six_k_fact, 6 * k);
-            factorial(three_k_fact, 3 * k);
-            factorial(k_fact, k);
+            mpz_fac_ui(six_k_fact, 6 * k);
+            mpz_fac_ui(three_k_fact, 3 * k);
+            mpz_fac_ui(k_fact, k);
 
             mpz_pow_ui(temp, k_fact, 3);
             mpz_mul(temp, temp, three_k_fact);
             mpz_divexact(M, six_k_fact, temp);
 
             // Calculate L = 545140134k + 13591409
-            mpz_set_ui(L, 545140134);
-            mpz_mul_ui(L, L, k);
-            mpz_add_ui(L, L, 13591409);
+            mpz_set_ui(temp, 545140134);
+            mpz_mul_ui(temp, temp, k);
+            mpz_add_ui(L, temp, 13591409);
 
             // Calculate X = (-262537412640768000)^k
             if (k == 0) {
@@ -86,11 +79,11 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
 
             // Accumulate to thread private variables
             mpf_add(S_local, S_local, term);
-
-            // Clean up temporary variables
-            mpf_clears(term, temp_f, NULL);
-            mpz_clears(temp, M, L, X, K, six_k, three_k, k_fact, three_k_fact, six_k_fact, NULL);
         }
+
+        // Clean up temporary variables
+        mpf_clears(term, temp_f, NULL);
+        mpz_clears(temp, M, L, X, K, six_k, three_k, k_fact, three_k_fact, six_k_fact, NULL);
 
         // Merge thread private variables into global variables
         #pragma omp critical
@@ -137,10 +130,18 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
     }
 
     // Write file, 100 bits per line
+    char buffer[1024];
+    size_t buffer_index = 0;
+
     for (unsigned long i = 1; i < digits + 1; i++) {
-        fputc(pi_str[i], file);
-        if (i % 100 == 0) fputc('\n', file);
-        if (i % 10 == 0 && i % 100 != 0) fputc(' ', file);
+        buffer[buffer_index++] = pi_str[i];
+        if (i % 100 == 0 || i == digits) {
+            buffer[buffer_index++] = '\n';
+            fwrite(buffer, 1, buffer_index, file);
+            buffer_index = 0;
+        } else if (i % 10 == 0) {
+            buffer[buffer_index++] = ' ';
+        }
     }
 
     free(pi_str);
