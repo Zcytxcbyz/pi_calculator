@@ -6,7 +6,7 @@
 #include <string.h>
 
 #define USE_DEBUG 0 // Set to 1 to enable debug output
-#define OUTPUT_FORMAT 0 // Set to 1 to enable output formatting
+#define OUTPUT_FORMAT 1 // Set to 1 to enable output formatting
 #define ENABLE_CACHE 1 // Set to 1 to enable cache for factorials and powers
 #define OMP_SCHEDULE guided // OpenMP schedule type
 
@@ -96,14 +96,7 @@ void calculate_M(unsigned long k, ThreadVariables* var, ThreadCache* cache) {
 void calculate_M(unsigned long k, ThreadVariables* var) {
 #endif
     #if ENABLE_CACHE
-    if (k == 0 || k - 1 != cache->k_M) {
-    #endif
-        // Calculate factorials
-        mpz_fac_ui(var->six_k_fact, 6 * k);
-        mpz_fac_ui(var->three_k_fact, 3 * k);
-        mpz_fac_ui(var->k_fact, k);
-    #if ENABLE_CACHE
-    } else {
+    if (k != 0 && k - 1 == cache->k_M) {
         // Recursive calculation of factorial
         // k! = (k-1)! * k
         // (3k)! = (3k-1)!*(3k)
@@ -115,6 +108,13 @@ void calculate_M(unsigned long k, ThreadVariables* var) {
         #pragma omp atomic
         ++cache_hit_count;
         #endif
+    } else {
+    #endif
+        // Calculate factorials
+        mpz_fac_ui(var->six_k_fact, 6 * k);
+        mpz_fac_ui(var->three_k_fact, 3 * k);
+        mpz_fac_ui(var->k_fact, k);
+    #if ENABLE_CACHE
     }
     #endif
 
