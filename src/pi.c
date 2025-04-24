@@ -3,8 +3,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <omp.h>
-
 #include <string.h>
+
+#define ENABLE_CACHE 1 // Set to 1 to enable cache for factorials and powers
+#define USE_DEBUG 0 // Set to 1 to enable debug output
+#define OMP_SCHEDULE schedule(guided) // OpenMP schedule type
 
 static mpz_t CONST_X_BASE; // CONST_X_BASE = -262537412640768000
 static mpz_t CONST_L_K; // CONST_L_K = 545140134
@@ -22,21 +25,19 @@ static void init_constants() {
 
 // Chudnovsky algorithm calculates PI
 void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
-    mpf_set_default_prec((digits + 2) * log2(10)); // Set sufficient precision
+    // Set sufficient precision
+    mpf_set_default_prec((digits + 2) * log2(10));
 
-    mpf_t C, M, L, X, S, term, temp, temp_f;
-    mpz_t K, k_fact, three_k_fact, six_k_fact;
+    mpf_t C, S, temp;
 
     // Initialize variable
-    mpf_inits(C, M, L, X, S, term, temp, temp_f, NULL);
-    mpz_inits(K, k_fact, three_k_fact, six_k_fact, NULL);
+    mpf_inits(C, temp, NULL);
+    mpf_init_set_ui(S, 0);
 
     // Constant C = 426880 * sqrt(10005)
     mpf_set_ui(C, 426880);
     mpf_sqrt_ui(temp, 10005);
     mpf_mul(C, C, temp);
-
-    mpf_set_ui(S, 0);
 
     // Calculate the required number of iterations (empirical formula)
     unsigned long iterations = (digits / 14) + 1;
@@ -44,51 +45,61 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
     // Set the number of OpenMP threads
     omp_set_num_threads(num_threads);
 
-    mpf_t S_private;
-    mpf_init_set_ui(S_private, 0);
-
     // Initialize global constants
     init_constants();
 
-    #pragma omp parallel private(K, k_fact, three_k_fact, six_k_fact, term, temp, temp_f, M, L, X) shared(CONST_X_BASE, CONST_L_K, CONST_L_ADD)
+    #if USE_DEBUG
+    int cache_hit_count = 0;
+    #endif
+
+    #pragma omp parallel private(temp) shared(S, CONST_X_BASE, CONST_L_K, CONST_L_ADD)
     {
-        mpf_t S_local;
-        mpf_t term, temp_f;
+        mpf_t S_private, term, temp_f;
         mpz_t temp, M, L, X, K, k_fact, three_k_fact, six_k_fact;
 
-        mpf_init(S_local);
-        mpf_set_ui(S_local, 0);
+        mpf_init_set_ui(S_private, 0);
         mpf_inits(term, temp_f, NULL);
         mpz_inits(temp, M, L, X, K, k_fact, three_k_fact, six_k_fact, NULL);
 
+        #if ENABLE_CACHE
+        // Thread private cache
         struct {
             unsigned long k_M, K_X;
             mpz_t k_fact, three_k_fact, six_k_fact, X;
-        } thread_cache;
+        } cache;
 
-        thread_cache.k_M = -2;
-        thread_cache.K_X = -2;
-        mpz_inits(thread_cache.k_fact, thread_cache.three_k_fact, thread_cache.six_k_fact, thread_cache.X);
+        cache.k_M = -2;
+        cache.K_X = -2;
+        mpz_inits(cache.k_fact, cache.three_k_fact, cache.six_k_fact, cache.X);
+        #endif
 
-        #pragma omp for schedule(dynamic, 10)
+        #pragma omp for OMP_SCHEDULE
         for (unsigned long k = 0; k < iterations; k++) {
             mpz_set_ui(K, k);
 
             // Calculate M = (6k)! / ((3k)! * (k!)^3)
-
-            if (k == 0 || k - 1 != thread_cache.k_M) {
+            #if ENABLE_CACHE
+            if (k == 0 || k - 1 != cache.k_M) {
+            #endif
+                // Calculate factorials
                 mpz_fac_ui(six_k_fact, 6 * k);
                 mpz_fac_ui(three_k_fact, 3 * k);
                 mpz_fac_ui(k_fact, k);
+            #if ENABLE_CACHE
             } else {
                 // Recursive calculation of factorial
                 // k! = (k-1)! * k
                 // (3k)! = (3k-1)!*(3k)
                 // (6k)! = (6k-1)!*(6k)
-                mpz_mul_ui(six_k_fact, thread_cache.six_k_fact, 6 * k);
-                mpz_mul_ui(three_k_fact, thread_cache.three_k_fact, 3 * k);
-                mpz_mul_ui(k_fact, thread_cache.k_fact, k);
+                mpz_mul_ui(six_k_fact, cache.six_k_fact, 6 * k);
+                mpz_mul_ui(three_k_fact, cache.three_k_fact, 3 * k);
+                mpz_mul_ui(k_fact, cache.k_fact, k);
+                #if USE_DEBUG
+                #pragma omp atomic
+                ++cache_hit_count;
+                #endif
             }
+            #endif
 
             mpz_pow_ui(temp, k_fact, 3);
             mpz_mul(temp, temp, three_k_fact);
@@ -100,16 +111,24 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
 
             // Calculate X = (-262537412640768000)^k
             if (k == 0) {
+                // K = 0 -> X = 1
                 mpz_set_ui(X, 1);
-            } else if (k - 1 == thread_cache.K_X) {
+            #if ENABLE_CACHE
+            } else if (k - 1 == cache.K_X) {
                 // Recursive calculation power
                 // (-262537412640768000)^k = (-262537412640768000)^(k-1)*(-262537412640768000)
-                mpz_mul(X, thread_cache.X, CONST_X_BASE);
+                mpz_mul(X, cache.X, CONST_X_BASE);
+                #if USE_DEBUG
+                #pragma omp atomic
+                ++cache_hit_count;
+                #endif
+            #endif
             } else {
+                // Calculate power
                 mpz_pow_ui(X, CONST_X_BASE, k);
             }
 
-            // Calculate the current item: M * L / X
+            // Calculate the current item: term = M * L / X
             mpf_set_z(term, M);
             mpf_set_z(temp_f, L);
             mpf_mul(term, term, temp_f);
@@ -117,53 +136,54 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
             mpf_div(term, term, temp_f);
 
             // Accumulate to thread private variables
-            mpf_add(S_local, S_local, term);
+            mpf_add(S_private, S_private, term);
 
-            //Cache variables
-
-            if (k > thread_cache.k_M || k == 0) {
-                thread_cache.k_M = k;
-                mpz_set(thread_cache.six_k_fact, six_k_fact);
-                mpz_set(thread_cache.three_k_fact, three_k_fact);
-                mpz_set(thread_cache.k_fact, k_fact);
+            #if ENABLE_CACHE
+            // Cache variables
+            if (k > cache.k_M || k == 0) {
+                cache.k_M = k;
+                mpz_set(cache.six_k_fact, six_k_fact);
+                mpz_set(cache.three_k_fact, three_k_fact);
+                mpz_set(cache.k_fact, k_fact);
             }
 
-            if (k > thread_cache.K_X || k == 0) {
-                thread_cache.K_X = k;
-                mpz_set(thread_cache.X, X);
+            if (k > cache.K_X || k == 0) {
+                cache.K_X = k;
+                mpz_set(cache.X, X);
             }
+            #endif
 
         }
-
-        // Clean up temporary variables
-        mpf_clears(term, temp_f, NULL);
-        mpz_clears(temp, M, L, X, K, k_fact, three_k_fact, six_k_fact, NULL);
 
         // Merge thread private variables into global variables
         #pragma omp critical
         {
-            mpf_add(S_private, S_private, S_local);
+            mpf_add(S, S, S_private);
         }
 
-        mpf_clear(S_local);
+        // Clean up thread variables
+        mpf_clears(S_private, term, temp_f, NULL);
+        mpz_clears(temp, M, L, X, K, k_fact, three_k_fact, six_k_fact, NULL);
 
-        // Clean up thread_cache
-        mpz_clears(thread_cache.k_fact, thread_cache.three_k_fact, thread_cache.six_k_fact, thread_cache.X, NULL);
+        #if ENABLE_CACHE
+        // Clean up cache
+        mpz_clears(cache.k_fact, cache.three_k_fact, cache.six_k_fact, cache.X, NULL);
+        #endif
+
     }
-
-    // Clean up global constants
-    mpz_clears(CONST_X_BASE, CONST_L_K, CONST_L_ADD, NULL);
-
-    // Assign the result to S
-    mpf_set(S, S_private);
-    mpf_clear(S_private);
 
     // Calculate PI = C / S
     mpf_div(pi, C, S);
 
+    // Clean up global constants
+    mpz_clears(CONST_X_BASE, CONST_L_K, CONST_L_ADD, NULL);
+
     // Clean up variables
-    mpf_clears(C, M, L, X, S, term, temp, temp_f, NULL);
-    mpz_clears(K, k_fact, three_k_fact, six_k_fact, NULL);
+    mpf_clears(C, S, temp, NULL);
+
+    #if USE_DEBUG
+    printf("Cache hit count: %d\n", cache_hit_count);
+    #endif
 }
 
 void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time) {
