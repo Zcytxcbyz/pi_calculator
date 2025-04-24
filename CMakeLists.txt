@@ -22,7 +22,7 @@ endif()
 
 # LTO support
 option(ENABLE_LTO "Enable Link Time Optimization" ON)
-if(ENABLE_LTO)
+if(ENABLE_LTO AND CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
     if(MSVC)
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /GL")
@@ -45,7 +45,7 @@ endif()
 
 # Enable Fast Math
 option(ENABLE_FAST_MATH "Enable Fast Math" ON)
-if(ENABLE_FAST_MATH)
+if(ENABLE_FAST_MATH AND CMAKE_BUILD_TYPE STREQUAL "Release")
     if(MSVC)
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /fp:fast")
     else()
