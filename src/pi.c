@@ -95,15 +95,29 @@ void calculate_M(unsigned long k, ThreadVariables* var, ThreadCache* cache) {
 #else
 void calculate_M(unsigned long k, ThreadVariables* var) {
 #endif
+// (3(k-1))! = (3k-1)!*(3k)
     #if ENABLE_CACHE
     if (k != 0 && k - 1 == cache->k_M) {
         // Recursive calculation of factorial
-        // k! = (k-1)! * k
+        // k! = (k-1)!*k
         // (3k)! = (3k-1)!*(3k)
         // (6k)! = (6k-1)!*(6k)
         mpz_mul_ui(var->six_k_fact, cache->six_k_fact, 6 * k);
-        mpz_mul_ui(var->three_k_fact, cache->three_k_fact, 3 * k);
-        mpz_mul_ui(var->k_fact, cache->k_fact, k);
+
+        // Calculate 3k! = 3(k-1)! * [3(k-1)+1, 3(k-1)+2, ..., 3k]
+        unsigned long prev_3k = 3 * (k - 1);
+        mpz_set(var->three_k_fact, cache->three_k_fact);
+        for (unsigned long i = prev_3k + 1; i <= 3 * k; i++) {
+            mpz_mul_ui(var->three_k_fact, var->three_k_fact, i);
+        }
+
+        // Calculate 6k! = 6(k-1)! * [6(k-1)+1, ..., 6k]
+        unsigned long prev_6k = 6 * (k - 1);
+        mpz_set(var->six_k_fact, cache->six_k_fact);
+        for (unsigned long i = prev_6k + 1; i <= 6 * k; i++) {
+            mpz_mul_ui(var->six_k_fact, var->six_k_fact, i);
+        }
+
         #if USE_DEBUG
         #pragma omp atomic
         ++cache_hit_count;
