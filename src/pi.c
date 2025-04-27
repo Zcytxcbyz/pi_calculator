@@ -289,8 +289,11 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         return;
     }
 
+    // Write header
     fprintf(file, "Pi calculated to %lu digits. ", digits);
     fprintf(file, "Computation time: %.2f seconds.\n\n", computation_time);
+
+    // Write the first two digits of PI
     fprintf(file, "3.\n");
 
     mp_exp_t exp;
@@ -302,13 +305,21 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         return;
     }
 
+    // Adjust the exponent to get the correct number of digits
+    if(exp != 1) {
+        fprintf(stderr, "Unexpected exponent value: %ld\n", exp);
+        free(pi_str);
+        fclose(file);
+        return;
+    }
+
     // Write file
     char buffer[BUFFER_SIZE];
     size_t buffer_index = 0;
 
     if(format_output) {
         // Block write optimization: every 100 characters on a line, add spaces every 10 characters
-            for (unsigned long line_start = 1; line_start <= digits; line_start += 100) {
+        for (unsigned long line_start = 1; line_start <= digits; line_start += 100) {
             unsigned long line_end = line_start + 100;
             if (line_end > digits + 1) line_end = digits + 1;
 
@@ -320,6 +331,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
                 // Copy character block
                 size_t block_length = block_end - block_start;
                 if (buffer_index + block_length >= sizeof(buffer)) {
+                    // Buffer full, write to file
                     fwrite(buffer, sizeof(char), buffer_index, file);
                     buffer_index = 0;
                 }
@@ -329,6 +341,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
                 // Add spaces (do not add to the last block)
                 if (block_end < line_end) {
                     if (buffer_index >= sizeof(buffer) - 1) {
+                        // Buffer full, write to file
                         fwrite(buffer, sizeof(char), buffer_index, file);
                         buffer_index = 0;
                     }
@@ -339,17 +352,25 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
             // Add line breaks (do not add to the last line)
             if (line_end <= digits) {
                 if (buffer_index >= sizeof(buffer) - 1) {
+                    // Buffer full, write to file
                     fwrite(buffer, sizeof(char), buffer_index, file);
                     buffer_index = 0;
                 }
                 buffer[buffer_index++] = '\n';
             }
         }
+
+        // Write remaining buffer to file
+        if (buffer_index > 0) {
+            fwrite(buffer, sizeof(char), buffer_index, file);
+        }
+
     } else {
         // Write directly without formatting.
         size_t offset = 1; // Skip '3.'
         unsigned long remaining = digits;
         while (remaining > 0) {
+            // Calculate the chunk size
             size_t chunk = (remaining > sizeof(buffer)) ? sizeof(buffer) : remaining;
             if (offset + chunk > strlen(pi_str)) chunk = strlen(pi_str) - offset;
 
