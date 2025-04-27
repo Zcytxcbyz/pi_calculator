@@ -175,6 +175,8 @@ To enable or disable these options, pass `-D<option>=ON/OFF` to the `cmake` comm
 cmake -S . -B build -DENABLE_SIMD=OFF -DBUILD_STATIC=OFF
 ```
 
+**Note**: If GMP library is not found, it can be manually specified by `GMP_INCLUDE_DIR` and `GMP_LIBRARY`.
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
