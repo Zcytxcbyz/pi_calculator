@@ -138,11 +138,40 @@ Run the program with the following options:
     ./pi_calculator -d 10000 -t 8
     ```
 
-## Notes
+3. Calculate π to 1000 digits without saving to a file:
+    ```bash
+    ./pi_calculator -d 1000 -c
+    ```
+
+## Performance Notes
 
 - The higher the number of digits, the more memory and computation time required.
 
-- The output file contains π formatted with 100 digits per line for readability.
+- Multithreading can significantly speed up calculations, especially on systems with multiple CPU cores.
+
+- The caching mechanism (`ENABLE_CACHE`) can optimize repeated calculations for large values of `k`.
+
+## Build Options
+
+The project supports several build options that can be configured using CMake:
+
+- `ENABLE_SIMD`: Enable SIMD instructions (e.g., AVX2/SSE4) for performance optimization (default: ON).
+
+- `ENABLE_LTO`: Enable Link Time Optimization (LTO) for smaller and faster binaries (default: ON).
+
+- `BUILD_STATIC`: Build as a statically linked executable (default: ON).
+
+- `ENABLE_CACHE`: Enable caching for large calculations (default: ON).
+
+- `OUTPUT_FORMAT`: Enable formatted output (e.g., 100 digits per line) (default: OFF).
+
+- `MULTI_OUTPUT`: Enable multi-output support (default: ON).
+
+To enable or disable these options, pass `-D<option>=ON/OFF` to the `cmake` command. For example:
+
+```bash
+cmake -S . -B build -DENABLE_SIMD=OFF -DBUILD_STATIC=OFF
+```
 
 ## License
 
