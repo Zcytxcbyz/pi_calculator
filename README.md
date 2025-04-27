@@ -169,8 +169,6 @@ The project supports several build options that can be configured using CMake:
 
 - `ENABLE_CACHE`: Enable caching for large calculations (default: ON).
 
-- `OUTPUT_FORMAT`: Enable formatted output (e.g., 100 digits per line) (default: OFF).
-
 To enable or disable these options, pass `-D<option>=ON/OFF` to the `cmake` command. For example:
 
 ```bash
