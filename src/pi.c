@@ -5,12 +5,9 @@
 #include <omp.h>
 #include <string.h>
 
-#define USE_DEBUG 0 // Set to 1 to enable debug output
-#define OUTPUT_FORMAT 1 // Set to 1 to enable output formatting
-#define ENABLE_CACHE 1 // Set to 1 to enable cache for factorials and powers
 #define OMP_SCHEDULE guided // OpenMP schedule type
 
-#if USE_DEBUG
+#ifdef DEBUG
 int cache_hit_count = 0;
 #endif
 
@@ -24,7 +21,7 @@ typedef struct {
     mpz_t temp, M, L, X, K, k_fact, three_k_fact, six_k_fact;
 } ThreadVariables;
 
-#if ENABLE_CACHE
+#ifdef ENABLE_CACHE
 // Cache for factorials and powers
 typedef struct {
     unsigned long k_M, K_X;
@@ -60,7 +57,7 @@ void clean_thread_variables(ThreadVariables* var) {
     mpz_clears(var->temp, var->M, var->L, var->X, var->K, var->k_fact, var->three_k_fact, var->six_k_fact, NULL);
 }
 
-#if ENABLE_CACHE
+#ifdef ENABLE_CACHE
 // Initialize thread cache
 void init_thread_cache(ThreadCache* cache) {
     cache->k_M = -2;
@@ -90,13 +87,13 @@ void set_cache(unsigned long k, ThreadCache* cache, ThreadVariables* var) {
 #endif
 
 // Calculate M = (6k)! / ((3k)! * (k!)^3)
-#if ENABLE_CACHE
+#ifdef ENABLE_CACHE
 void calculate_M(unsigned long k, ThreadVariables* var, ThreadCache* cache) {
 #else
 void calculate_M(unsigned long k, ThreadVariables* var) {
 #endif
 // (3(k-1))! = (3k-1)!*(3k)
-    #if ENABLE_CACHE
+    #ifdef ENABLE_CACHE
     if (k != 0 && k - 1 == cache->k_M) {
         // Recursive calculation of factorial
         // k! = (k-1)!*k
@@ -118,7 +115,7 @@ void calculate_M(unsigned long k, ThreadVariables* var) {
             mpz_mul_ui(var->six_k_fact, var->six_k_fact, i);
         }
 
-        #if USE_DEBUG
+        #ifdef DEBUG
         #pragma omp atomic
         ++cache_hit_count;
         #endif
@@ -128,7 +125,7 @@ void calculate_M(unsigned long k, ThreadVariables* var) {
         mpz_fac_ui(var->six_k_fact, 6 * k);
         mpz_fac_ui(var->three_k_fact, 3 * k);
         mpz_fac_ui(var->k_fact, k);
-    #if ENABLE_CACHE
+    #ifdef ENABLE_CACHE
     }
     #endif
 
@@ -144,7 +141,7 @@ void calculate_L(unsigned long k, ThreadVariables* var) {
 }
 
 // Calculate X = (-262537412640768000)^k
-#if ENABLE_CACHE
+#ifdef ENABLE_CACHE
 void calculate_X(unsigned long k, ThreadVariables* var, ThreadCache* cache) {
 #else
 void calculate_X(unsigned long k, ThreadVariables* var) {
@@ -153,12 +150,20 @@ void calculate_X(unsigned long k, ThreadVariables* var) {
     if (k == 0) {
         // K = 0 -> X = 1
         mpz_set_ui(var->X, 1);
-    #if ENABLE_CACHE
+    #ifdef ENABLE_CACHE
     } else if (k - 1 == cache->K_X) {
         // Recursive calculation power
         // (-262537412640768000)^k = (-262537412640768000)^(k-1)*(-262537412640768000)
         mpz_mul(var->X, cache->X, CONST_X_BASE);
-        #if USE_DEBUG
+        #ifdef DEBUG
+        #pragma omp atomic
+        ++cache_hit_count;
+        #endif
+    } else if (k - 1 == cache->K_X) {
+        // Recursive calculation power
+        // (-262537412640768000)^k = (-262537412640768000)^(k-1)*(-262537412640768000)
+        mpz_mul(var->X, cache->X, CONST_X_BASE);
+        #ifdef DEBUG
         #pragma omp atomic
         ++cache_hit_count;
         #endif
@@ -209,7 +214,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
         ThreadVariables var; // Thread private variables
         init_thread_variables(&var); // Initialize thread variables
 
-        #if ENABLE_CACHE
+        #ifdef ENABLE_CACHE
         ThreadCache cache; // Thread var cache
         init_thread_cache(&cache); // Initialize thread cache
         #endif
@@ -219,7 +224,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
             mpz_set_ui(var.K, k);
 
             // Calculate M = (6k)! / ((3k)! * (k!)^3)
-            #if ENABLE_CACHE
+            #ifdef ENABLE_CACHE
             calculate_M(k, &var, &cache);
             #else
             calculate_M(k, &var);
@@ -229,7 +234,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
             calculate_L(k, &var);
 
             // Calculate X = (-262537412640768000)^k
-            #if ENABLE_CACHE
+            #ifdef ENABLE_CACHE
             calculate_X(k, &var, &cache);
             #else
             calculate_X(k, &var);
@@ -241,7 +246,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
             // Accumulate to thread private variables
             mpf_add(var.S, var.S, var.term);
 
-            #if ENABLE_CACHE
+            #ifdef ENABLE_CACHE
             // Set cache variables
             set_cache(k, &cache, &var);
             #endif
@@ -256,7 +261,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
 
         clean_thread_variables(&var); // Clean up thread variables
 
-        #if ENABLE_CACHE
+        #ifdef ENABLE_CACHE
         clean_thread_cache(&cache); // Clean up thread cache
         #endif
 
@@ -271,7 +276,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
     // Clean up variables
     mpf_clears(C, S, temp, NULL);
 
-    #if USE_DEBUG
+    #ifdef DEBUG
     printf("Cache hit count: %d\n", cache_hit_count);
     #endif
 }
@@ -303,7 +308,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
     for (unsigned long i = 1; i < digits + 1; i++) {
         buffer[buffer_index++] = pi_str[i]; // Copy the digit
 
-        #if OUTPUT_FORMAT
+        #ifdef OUTPUT_FORMAT
         // Add formatting for output
         if (i % 100 == 0 || i == digits) {
             buffer[buffer_index++] = '\n';
