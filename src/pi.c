@@ -302,7 +302,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         return;
     }
 
-    // Write file, 100 bits per line
+    // Write file
     char buffer[BUFFER_SIZE];
     size_t buffer_index = 0;
 
