@@ -320,7 +320,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
                 // Copy character block
                 size_t block_length = block_end - block_start;
                 if (buffer_index + block_length >= sizeof(buffer)) {
-                    fwrite(buffer, 1, buffer_index, file);
+                    fwrite(buffer, sizeof(char), buffer_index, file);
                     buffer_index = 0;
                 }
                 memcpy(buffer + buffer_index, pi_str + block_start, block_length);
@@ -329,7 +329,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
                 // Add spaces (do not add to the last block)
                 if (block_end < line_end) {
                     if (buffer_index >= sizeof(buffer) - 1) {
-                        fwrite(buffer, 1, buffer_index, file);
+                        fwrite(buffer, sizeof(char), buffer_index, file);
                         buffer_index = 0;
                     }
                     buffer[buffer_index++] = ' ';
@@ -339,7 +339,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
             // Add line breaks (do not add to the last line)
             if (line_end <= digits) {
                 if (buffer_index >= sizeof(buffer) - 1) {
-                    fwrite(buffer, 1, buffer_index, file);
+                    fwrite(buffer, sizeof(char), buffer_index, file);
                     buffer_index = 0;
                 }
                 buffer[buffer_index++] = '\n';
@@ -355,7 +355,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
             // Copy the chunk to the buffer
             memcpy(buffer, pi_str + offset, chunk);
-            fwrite(buffer, 1, chunk, file);
+            fwrite(buffer, sizeof(char), chunk, file);
             offset += chunk;
             remaining -= chunk;
         }
