@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
     bool format_output = false;    // Default to unformatted output
     size_t buffer_size = 65536;    // Default buffer size
     char* omp_schedule = "guided"; // Default OpenMP schedule type
-    int chunk_size = 0;            // Default chunk size
+    int chunk_size = 1;            // Default chunk size
 
     // Analyze command-line parameters
     for (int i = 1; i < argc; i++) {
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
                 }
             } else {
                 omp_schedule = schedule_arg;
-                chunk_size = 0; // Default chunk size
+                chunk_size = 1; // Default chunk size
             }
 
             if (strcmp(omp_schedule, "static") != 0 &&

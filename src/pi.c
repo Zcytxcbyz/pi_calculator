@@ -9,9 +9,9 @@
 int cache_hit_count = 0;
 #endif
 
-static mpz_t CONST_X_BASE; // CONST_X_BASE = -262537412640768000
-static mpz_t CONST_L_K; // CONST_L_K = 545140134
-static mpz_t CONST_L_ADD; // CONST_L_ADD = 13591409
+static mpz_t CONST_X_BASE;  // CONST_X_BASE = -262537412640768000
+static mpz_t CONST_L_K;     // CONST_L_K = 545140134
+static mpz_t CONST_L_ADD;   // CONST_L_ADD = 13591409
 
 // Type definition for thread private variables
 typedef struct {
@@ -214,6 +214,27 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
     }
     omp_set_schedule(schedule_type, chunk_size);
 
+    #ifdef DEBUG
+    const char* debug_schedule_name;
+    omp_sched_t debug_schedule_id;
+    int debug_chunk_size;
+    omp_get_schedule(&debug_schedule_id, &debug_chunk_size);
+    switch (debug_schedule_id) {
+        case omp_sched_static:
+        debug_schedule_name = "static";
+            break;
+        case omp_sched_dynamic:
+        debug_schedule_name = "dynamic";
+            break;
+        case omp_sched_guided:
+        debug_schedule_name = "guided";
+            break;
+        default:
+        debug_schedule_name = 0;
+    }
+    printf("OpenMP schedule type: %s, chunk size: %d\n", debug_schedule_name, debug_chunk_size);
+    #endif
+
     // Initialize global constants
     init_constants();
 
@@ -321,6 +342,10 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         return;
     }
 
+    #ifdef DEBUG
+    int flush_count = 0; // Count the number of times the buffer is flushed
+    #endif
+
     // Allocate buffer dynamically based on the specified size
     char* buffer = (char*)malloc(buffer_size);
     size_t buffer_index = 0;
@@ -342,6 +367,10 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
                     // Buffer full, write to file
                     fwrite(buffer, sizeof(char), buffer_index, file);
                     buffer_index = 0;
+
+                    #ifdef DEBUG
+                    ++flush_count;
+                    #endif
                 }
                 memcpy(buffer + buffer_index, pi_str + block_start, block_length);
                 buffer_index += block_length;
@@ -352,6 +381,10 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
                         // Buffer full, write to file
                         fwrite(buffer, sizeof(char), buffer_index, file);
                         buffer_index = 0;
+
+                        #ifdef DEBUG
+                        ++flush_count;
+                        #endif
                     }
                     buffer[buffer_index++] = ' ';
                 }
@@ -363,6 +396,10 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
                     // Buffer full, write to file
                     fwrite(buffer, sizeof(char), buffer_index, file);
                     buffer_index = 0;
+
+                    #ifdef DEBUG
+                    ++flush_count;
+                    #endif
                 }
                 buffer[buffer_index++] = '\n';
             }
@@ -371,6 +408,10 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         // Write remaining buffer to file
         if (buffer_index > 0) {
             fwrite(buffer, sizeof(char), buffer_index, file);
+
+            #ifdef DEBUG
+            ++flush_count;
+            #endif
         }
 
     } else {
@@ -387,8 +428,16 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
             fwrite(buffer, sizeof(char), chunk, file);
             offset += chunk;
             remaining -= chunk;
+
+            #ifdef DEBUG
+            ++flush_count;
+            #endif
         }
     }
+
+    #ifdef DEBUG
+    printf("Buffer flush count: %d\n", flush_count); // Number of times the buffer was flushed
+    #endif
 
     free(buffer);
     free(pi_str);
