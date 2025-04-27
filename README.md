@@ -128,6 +128,8 @@ Run the program with the following options:
 
 - `-b <size>`: Set buffer size in bytes (default: 65536)
 
+- `-s <schedule>`: Set OpenMP schedule type (static, dynamic, guided) and chunk size (default: guided)
+
 - `-h`: Display the help message.
 
 ### Examples

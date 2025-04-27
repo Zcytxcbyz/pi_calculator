@@ -5,8 +5,6 @@
 #include <omp.h>
 #include <string.h>
 
-#define OMP_SCHEDULE guided // OpenMP schedule type
-
 #ifdef DEBUG
 int cache_hit_count = 0;
 #endif
@@ -184,7 +182,7 @@ void calculate_term(unsigned long k, ThreadVariables* var) {
 }
 
 // Chudnovsky algorithm calculates PI
-void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
+void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* omp_schedule, int chunk_size) {
     // Set sufficient precision
     mpf_set_default_prec((digits + 2) * log2(10));
 
@@ -205,6 +203,17 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
     // Set the number of OpenMP threads
     omp_set_num_threads(num_threads);
 
+    // Set OpenMP schedule type and chunk size
+    omp_sched_t schedule_type;
+    if (strcmp(omp_schedule, "static") == 0) {
+        schedule_type = omp_sched_static;
+    } else if (strcmp(omp_schedule, "dynamic") == 0) {
+        schedule_type = omp_sched_dynamic;
+    } else { // Default to "guided"
+        schedule_type = omp_sched_guided;
+    }
+    omp_set_schedule(schedule_type, chunk_size);
+
     // Initialize global constants
     init_constants();
 
@@ -219,7 +228,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
         init_thread_cache(&cache); // Initialize thread cache
         #endif
 
-        #pragma omp for schedule(OMP_SCHEDULE)
+        #pragma omp for schedule(runtime)
         for (unsigned long k = 0; k < iterations; k++) {
             mpz_set_ui(var.K, k);
 
