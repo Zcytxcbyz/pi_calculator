@@ -19,6 +19,7 @@ option(ENABLE_LTO "Enable Link Time Optimization (LTO)" ON)
 option(BUILD_STATIC "Build as static executable" ON)
 option(ENABLE_CACHE "Enable cache for large calculations" ON)
 option(OUTPUT_FORMAT "Output format" OFF)
+option(MULTI_OUTPUT "Enable multi-output" ON)
 
 # Compiler optimization configuration
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -86,6 +87,11 @@ if(OUTPUT_FORMAT)
     add_compile_definitions(OUTPUT_FORMAT)
 endif()
 
+# Multi-output configuration
+if(MULTI_OUTPUT)
+    add_compile_definitions(MULTI_OUTPUT)
+endif()
+
 # Executable file configuration
 add_executable(pi_calculator
     src/pi.c
@@ -102,6 +108,18 @@ target_link_libraries(pi_calculator PRIVATE
     GMP::GMP
     OpenMP::OpenMP_C
 )
+
+# WSL2 debugging support
+if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        # Set the debug symbol
+        set_property(TARGET pi_calculator PROPERTY LINK_OPTIONS "-rdynamic")
+    endif()
+    # WSL2 path mapping
+    if(DEFINED ENV{WSL_DISTRO_NAME})
+        add_compile_definitions(WSL_COMPAT_MODE)
+    endif()
+endif()
 
 # Installation rules
 install(TARGETS pi_calculator DESTINATION bin)
