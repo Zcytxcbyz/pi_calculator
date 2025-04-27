@@ -306,6 +306,10 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
     char buffer[BUFFER_SIZE];
     size_t buffer_index = 0;
 
+    #ifdef DEBUG
+    int flush_count = 0; // Count the number of flushes
+    #endif
+
     for (unsigned long i = 1; i < digits + 1; i++) {
         buffer[buffer_index++] = pi_str[i]; // Copy the digit
 
@@ -318,11 +322,24 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         }
         #endif
 
-        // Flush the buffer if it reaches a certain size or if it's the last digit
-        if (buffer_index >= sizeof(buffer) - 2 || i == digits) {
+        // Flush the buffer to the file if it reaches the size limit
+        if (buffer_index >= sizeof(buffer) - 2) { // Leave space for null terminator
             fwrite(buffer, sizeof(char), buffer_index, file);
             buffer_index = 0;
+
+            #ifdef DEBUG
+            ++flush_count;
+            #endif
         }
+    }
+
+    // Write any remaining data in the buffer to the file
+    if(buffer_index > 0) {
+        fwrite(buffer, sizeof(char), buffer_index, file);
+
+        #ifdef DEBUG
+        printf("Flush count: %d\n", flush_count);
+        #endif
     }
 
     free(pi_str);
