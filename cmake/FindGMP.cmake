@@ -19,6 +19,7 @@ if(GMP_FOUND)
         # Dynamic library
         set(GMP_LIBRARY_TYPE SHARED)
     else()
+        # Unknown library type
         message(WARNING "Unknown library type for GMP: ${GMP_LIBRARY}")
         set(GMP_LIBRARY_TYPE UNKNOWN)
     endif()
