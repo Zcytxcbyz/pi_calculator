@@ -16,7 +16,7 @@ find_package(OpenMP REQUIRED)
 # User options configuration
 option(ENABLE_SIMD "Enable SIMD instructions (AVX2/SSE4)" ON)
 option(ENABLE_LTO "Enable Link Time Optimization (LTO)" ON)
-option(BUILD_STATIC "Build as static executable" ON)
+option(BUILD_STATIC "Build as static executable" OFF)
 option(ENABLE_CACHE "Enable cache for large calculations" ON)
 
 # Compiler optimization configuration
@@ -96,18 +96,6 @@ target_link_libraries(pi_calculator PRIVATE
     GMP::GMP
     OpenMP::OpenMP_C
 )
-
-# WSL2 debugging support
-if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        # Set the debug symbol
-        set_property(TARGET pi_calculator PROPERTY LINK_OPTIONS "-rdynamic")
-    endif()
-    # WSL2 path mapping
-    if(DEFINED ENV{WSL_DISTRO_NAME})
-        add_compile_definitions(WSL_COMPAT_MODE)
-    endif()
-endif()
 
 # Installation rules
 install(TARGETS pi_calculator DESTINATION bin)

@@ -50,17 +50,17 @@
 3. **Generate Build Files**
    - On Linux/macOS:
      ```bash
-     cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC=ON
+     cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
      ```
 
    - On Windows (using MSYS2):
      ```bash
-     cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC=ON
+     cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
      ```
 
    - On Windows (using Visual Studio):
      ```bash
-     cmake -S . -B build -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC=ON
+     cmake -S . -B build -G "Visual Studio 16 2019" -A x64 -DCMAKE_BUILD_TYPE=Release
      ```
 
 4. **Build the Project**
@@ -165,7 +165,7 @@ The project supports several build options that can be configured using CMake:
 
 - `ENABLE_LTO`: Enable Link Time Optimization (LTO) for smaller and faster binaries (default: ON).
 
-- `BUILD_STATIC`: Build as a statically linked executable (default: ON).
+- `BUILD_STATIC`: Build as a statically linked executable (default: OFF).
 
 - `ENABLE_CACHE`: Enable caching for large calculations (default: ON).
 
