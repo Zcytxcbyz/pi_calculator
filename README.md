@@ -122,6 +122,8 @@ Run the program with the following options:
 
 - `-t <threads>`: Specify the number of threads to use (default: number of CPU cores).
 
+- `-f`: Format output (default: unformatted);
+
 - `-c`: Disable output file
 
 - `-h`: Display the help message.

@@ -4,11 +4,12 @@
 #include <gmp.h>
 #include <math.h>
 #include <time.h>
+#include <stdbool.h>
 
 // Calculate PI to the specified number of digits
 void calculate_pi(mpf_t pi, unsigned long digits, int num_threads);
 
 // Write the PI value to a file
-void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time);
+void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time, bool format_output);
 
 #endif // PI_H

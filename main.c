@@ -11,6 +11,7 @@ void print_usage(const char* program_name) {
     printf("  -d <digits>    Number of digits to calculate (default: 1000)\n");
     printf("  -o <filename>  Output file name (default: pi.txt)\n");
     printf("  -t <threads>   Number of threads to use (default: number of CPU cores)\n");
+    printf("  -f             Format output (default: unformatted)\n");
     printf("  -c             Disable output file\n");
     printf("  -h             Show this help message\n");
 }
@@ -19,7 +20,8 @@ int main(int argc, char* argv[]) {
     unsigned long digits = 1000;
     char* output_file = "pi.txt";
     int num_threads = omp_get_max_threads();
-    int enable_output = 1;
+    bool enable_output = true;
+    bool format_output = false;
 
     // Analyze command-line parameters
     for (int i = 1; i < argc; i++) {
@@ -29,6 +31,8 @@ int main(int argc, char* argv[]) {
             output_file = argv[++i];
         } else if (strcmp(argv[i], "-t") == 0 && i + 1 < argc) {
             num_threads = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "-f") == 0) {
+            format_output = true;
         } else if (strcmp(argv[i], "-c") == 0) {
             enable_output = 0;
         } else if (strcmp(argv[i], "-h") == 0) {
@@ -54,7 +58,7 @@ int main(int argc, char* argv[]) {
     printf("Total time: %.2f seconds\n", total_time);
 
     if(enable_output) {
-        write_pi_to_file(pi, digits, output_file, total_time);
+        write_pi_to_file(pi, digits, output_file, total_time, format_output);
         printf("Result written to %s\n", output_file);
     }
 

@@ -18,7 +18,6 @@ option(ENABLE_SIMD "Enable SIMD instructions (AVX2/SSE4)" ON)
 option(ENABLE_LTO "Enable Link Time Optimization (LTO)" ON)
 option(BUILD_STATIC "Build as static executable" ON)
 option(ENABLE_CACHE "Enable cache for large calculations" ON)
-option(OUTPUT_FORMAT "Output format" OFF)
 option(MULTI_OUTPUT "Enable multi-output" ON)
 
 # Compiler optimization configuration
@@ -80,11 +79,6 @@ endif()
 # Cache configuration
 if(ENABLE_CACHE)
     add_compile_definitions(ENABLE_CACHE)
-endif()
-
-# Output format configuration
-if(OUTPUT_FORMAT)
-    add_compile_definitions(OUTPUT_FORMAT)
 endif()
 
 # Multi-output configuration

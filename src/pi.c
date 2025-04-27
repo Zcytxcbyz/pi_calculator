@@ -282,7 +282,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
     #endif
 }
 
-void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time) {
+void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time, bool format_output) {
     FILE* file = fopen(filename, "w");
     if (!file) {
         perror("Failed to open file");
@@ -306,40 +306,59 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
     char buffer[BUFFER_SIZE];
     size_t buffer_index = 0;
 
-    #ifdef DEBUG
-    int flush_count = 0; // Count the number of flushes
-    #endif
+    if(format_output) {
+        // Block write optimization: every 100 characters on a line, add spaces every 10 characters
+            for (unsigned long line_start = 1; line_start <= digits; line_start += 100) {
+            unsigned long line_end = line_start + 100;
+            if (line_end > digits + 1) line_end = digits + 1;
 
-    for (unsigned long i = 1; i < digits + 1; i++) {
-        buffer[buffer_index++] = pi_str[i]; // Copy the digit
+            // Process blocks of every 10 characters
+            for (unsigned long block_start = line_start; block_start < line_end; block_start += 10) {
+                    unsigned long block_end = block_start + 10;
+                if (block_end > line_end) block_end = line_end;
 
-        #ifdef OUTPUT_FORMAT
-        // Add formatting for output
-        if (i % 100 == 0 || i == digits) {
-            buffer[buffer_index++] = '\n';
-        } else if (i % 10 == 0) {
-            buffer[buffer_index++] = ' ';
+                // Copy character block
+                size_t block_length = block_end - block_start;
+                if (buffer_index + block_length >= sizeof(buffer)) {
+                    fwrite(buffer, 1, buffer_index, file);
+                    buffer_index = 0;
+                }
+                memcpy(buffer + buffer_index, pi_str + block_start, block_length);
+                buffer_index += block_length;
+
+                // Add spaces (do not add to the last block)
+                if (block_end < line_end) {
+                    if (buffer_index >= sizeof(buffer) - 1) {
+                        fwrite(buffer, 1, buffer_index, file);
+                        buffer_index = 0;
+                    }
+                    buffer[buffer_index++] = ' ';
+                }
+            }
+
+            // Add line breaks (do not add to the last line)
+            if (line_end <= digits) {
+                if (buffer_index >= sizeof(buffer) - 1) {
+                    fwrite(buffer, 1, buffer_index, file);
+                    buffer_index = 0;
+                }
+                buffer[buffer_index++] = '\n';
+            }
         }
-        #endif
+    } else {
+        // Write directly without formatting.
+        size_t offset = 1; // Skip '3.'
+        unsigned long remaining = digits;
+        while (remaining > 0) {
+            size_t chunk = (remaining > sizeof(buffer)) ? sizeof(buffer) : remaining;
+            if (offset + chunk > strlen(pi_str)) chunk = strlen(pi_str) - offset;
 
-        // Flush the buffer to the file if it reaches the size limit
-        if (buffer_index >= sizeof(buffer) - 2) { // Leave space for null terminator
-            fwrite(buffer, sizeof(char), buffer_index, file);
-            buffer_index = 0;
-
-            #ifdef DEBUG
-            ++flush_count;
-            #endif
+            // Copy the chunk to the buffer
+            memcpy(buffer, pi_str + offset, chunk);
+            fwrite(buffer, 1, chunk, file);
+            offset += chunk;
+            remaining -= chunk;
         }
-    }
-
-    // Write any remaining data in the buffer to the file
-    if(buffer_index > 0) {
-        fwrite(buffer, sizeof(char), buffer_index, file);
-
-        #ifdef DEBUG
-        printf("Flush count: %d\n", flush_count);
-        #endif
     }
 
     free(pi_str);
