@@ -18,7 +18,6 @@ option(ENABLE_SIMD "Enable SIMD instructions (AVX2/SSE4)" ON)
 option(ENABLE_LTO "Enable Link Time Optimization (LTO)" ON)
 option(BUILD_STATIC "Build as static executable" ON)
 option(ENABLE_CACHE "Enable cache for large calculations" ON)
-option(MULTI_OUTPUT "Enable multi-output" ON)
 
 # Compiler optimization configuration
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -79,11 +78,6 @@ endif()
 # Cache configuration
 if(ENABLE_CACHE)
     add_compile_definitions(ENABLE_CACHE)
-endif()
-
-# Multi-output configuration
-if(MULTI_OUTPUT)
-    add_compile_definitions(MULTI_OUTPUT)
 endif()
 
 # Executable file configuration

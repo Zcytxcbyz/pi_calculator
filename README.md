@@ -171,8 +171,6 @@ The project supports several build options that can be configured using CMake:
 
 - `OUTPUT_FORMAT`: Enable formatted output (e.g., 100 digits per line) (default: OFF).
 
-- `MULTI_OUTPUT`: Enable multi-output support (default: ON).
-
 To enable or disable these options, pass `-D<option>=ON/OFF` to the `cmake` command. For example:
 
 ```bash
