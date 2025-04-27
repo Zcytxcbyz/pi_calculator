@@ -10,6 +10,6 @@
 void calculate_pi(mpf_t pi, unsigned long digits, int num_threads);
 
 // Write the PI value to a file
-void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time, bool format_output);
+void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time, bool format_output, size_t buffer_size);
 
 #endif // PI_H

@@ -5,7 +5,6 @@
 #include <omp.h>
 #include <string.h>
 
-#define BUFFER_SIZE 65536 // Buffer size for file writing
 #define OMP_SCHEDULE guided // OpenMP schedule type
 
 #ifdef DEBUG
@@ -282,7 +281,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads) {
     #endif
 }
 
-void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time, bool format_output) {
+void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time, bool format_output, size_t buffer_size) {
     FILE* file = fopen(filename, "w");
     if (!file) {
         perror("Failed to open file");
@@ -313,8 +312,8 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         return;
     }
 
-    // Write file
-    char buffer[BUFFER_SIZE];
+    // Allocate buffer dynamically based on the specified size
+    char* buffer = (char*)malloc(buffer_size);
     size_t buffer_index = 0;
 
     if(format_output) {
@@ -382,6 +381,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         }
     }
 
+    free(buffer);
     free(pi_str);
     fclose(file);
 }

@@ -126,6 +126,8 @@ Run the program with the following options:
 
 - `-c`: Disable output file
 
+- `-b <size>`: Set buffer size in bytes (default: 65536)
+
 - `-h`: Display the help message.
 
 ### Examples

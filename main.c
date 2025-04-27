@@ -13,6 +13,7 @@ void print_usage(const char* program_name) {
     printf("  -t <threads>   Number of threads to use (default: number of CPU cores)\n");
     printf("  -f             Format output (default: unformatted)\n");
     printf("  -c             Disable output file\n");
+    printf("  -b <size>      Set buffer size in bytes (default: 65536)\n");
     printf("  -h             Show this help message\n");
 }
 
@@ -22,6 +23,7 @@ int main(int argc, char* argv[]) {
     int num_threads = omp_get_max_threads();
     bool enable_output = true;
     bool format_output = false;
+    size_t buffer_size = 65536;
 
     // Analyze command-line parameters
     for (int i = 1; i < argc; i++) {
@@ -35,6 +37,12 @@ int main(int argc, char* argv[]) {
             format_output = true;
         } else if (strcmp(argv[i], "-c") == 0) {
             enable_output = 0;
+        } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
+            buffer_size = strtoul(argv[++i], NULL, 10);
+            if (buffer_size < 1024) {
+                fprintf(stderr, "Buffer size must be at least 1024 bytes.\n");
+                return 1;
+            }
         } else if (strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             return 0;
@@ -58,7 +66,7 @@ int main(int argc, char* argv[]) {
     printf("Total time: %.2f seconds\n", total_time);
 
     if(enable_output) {
-        write_pi_to_file(pi, digits, output_file, total_time, format_output);
+        write_pi_to_file(pi, digits, output_file, total_time, format_output, buffer_size);
         printf("Result written to %s\n", output_file);
     }
 
