@@ -5,6 +5,7 @@
 #include <omp.h>
 #include <string.h>
 
+#define BUFFER_SIZE 65536 // Buffer size for file writing
 #define OMP_SCHEDULE guided // OpenMP schedule type
 
 #ifdef DEBUG
@@ -302,7 +303,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
     }
 
     // Write file, 100 bits per line
-    char buffer[4096];
+    char buffer[BUFFER_SIZE];
     size_t buffer_index = 0;
 
     for (unsigned long i = 1; i < digits + 1; i++) {
@@ -319,8 +320,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
         // Flush the buffer if it reaches a certain size or if it's the last digit
         if (buffer_index >= sizeof(buffer) - 2 || i == digits) {
-            buffer[buffer_index] = '\0';
-            fputs(buffer, file);
+            fwrite(buffer, sizeof(char), buffer_index, file);
             buffer_index = 0;
         }
     }
