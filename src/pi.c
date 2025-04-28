@@ -90,9 +90,15 @@ void calculate_M(unsigned long k, ThreadVariables* var, ThreadCache* cache) {
 #else
 void calculate_M(unsigned long k, ThreadVariables* var) {
 #endif
-// (3(k-1))! = (3k-1)!*(3k)
+    if (k == 0) {
+        // k = 0 -> k! = 1
+        // k = 0 -> (3k)! = 1
+        // k = 0 -> (6k)! = 1
+        mpz_set_ui(var->k_fact, 1);
+        mpz_set_ui(var->three_k_fact, 1);
+        mpz_set_ui(var->six_k_fact, 1);
     #ifdef ENABLE_CACHE
-    if (k != 0 && k - 1 == cache->k_M) {
+    } else if (k - 1 == cache->k_M) {
         // Recursive calculation of factorial
         // k! = (k-1)!*k
         // (3k)! = (3k-1)!*(3k)
@@ -117,15 +123,13 @@ void calculate_M(unsigned long k, ThreadVariables* var) {
         #pragma omp atomic
         ++cache_hit_count;
         #endif
-    } else {
     #endif
+    } else {
         // Calculate factorials
         mpz_fac_ui(var->six_k_fact, 6 * k);
         mpz_fac_ui(var->three_k_fact, 3 * k);
         mpz_fac_ui(var->k_fact, k);
-    #ifdef ENABLE_CACHE
     }
-    #endif
 
     mpz_pow_ui(var->temp, var->k_fact, 3);
     mpz_mul(var->temp, var->temp, var->three_k_fact);
