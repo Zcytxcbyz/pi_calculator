@@ -6,7 +6,7 @@
 #include <string.h>
 
 #ifdef DEBUG
-int cache_hit_count = 0;
+unsigned long cache_hit_count = 0; // Count cache hits
 #endif
 
 static mpz_t CONST_X_BASE;  // CONST_X_BASE = -262537412640768000
@@ -58,9 +58,13 @@ void clean_thread_variables(ThreadVariables* var) {
 #ifdef ENABLE_CACHE
 // Initialize thread cache
 void init_thread_cache(ThreadCache* cache) {
-    cache->k_M = -2;
-    cache->K_X = -2;
+    cache->k_M = 0;
+    cache->K_X = 0;
     mpz_inits(cache->k_fact, cache->three_k_fact, cache->six_k_fact, cache->X, NULL);
+    mpz_set_ui(cache->k_fact, 1);         // k = 0 -> k! = 1
+    mpz_set_ui(cache->three_k_fact, 1);   // k = 0 -> (3k)! = 1
+    mpz_set_ui(cache->six_k_fact, 1);     // k = 0 -> (6k)! = 1
+    mpz_set_ui(cache->X, 1);              // k = 0 -> (-262537412640768000)^k ! = 1
 }
 
 // Clean up thread cache
@@ -90,9 +94,15 @@ void calculate_M(unsigned long k, ThreadVariables* var, ThreadCache* cache) {
 #else
 void calculate_M(unsigned long k, ThreadVariables* var) {
 #endif
-// (3(k-1))! = (3k-1)!*(3k)
+    if (k == 0) {
+        // k = 0 -> k! = 1
+        // k = 0 -> (3k)! = 1
+        // k = 0 -> (6k)! = 1
+        mpz_set_ui(var->k_fact, 1);
+        mpz_set_ui(var->three_k_fact, 1);
+        mpz_set_ui(var->six_k_fact, 1);
     #ifdef ENABLE_CACHE
-    if (k != 0 && k - 1 == cache->k_M) {
+    } else if (k - 1 == cache->k_M) {
         // Recursive calculation of factorial
         // k! = (k-1)!*k
         // (3k)! = (3k-1)!*(3k)
@@ -117,15 +127,13 @@ void calculate_M(unsigned long k, ThreadVariables* var) {
         #pragma omp atomic
         ++cache_hit_count;
         #endif
-    } else {
     #endif
+    } else {
         // Calculate factorials
         mpz_fac_ui(var->six_k_fact, 6 * k);
         mpz_fac_ui(var->three_k_fact, 3 * k);
         mpz_fac_ui(var->k_fact, k);
-    #ifdef ENABLE_CACHE
     }
-    #endif
 
     mpz_pow_ui(var->temp, var->k_fact, 3);
     mpz_mul(var->temp, var->temp, var->three_k_fact);
@@ -149,14 +157,6 @@ void calculate_X(unsigned long k, ThreadVariables* var) {
         // K = 0 -> X = 1
         mpz_set_ui(var->X, 1);
     #ifdef ENABLE_CACHE
-    } else if (k - 1 == cache->K_X) {
-        // Recursive calculation power
-        // (-262537412640768000)^k = (-262537412640768000)^(k-1)*(-262537412640768000)
-        mpz_mul(var->X, cache->X, CONST_X_BASE);
-        #ifdef DEBUG
-        #pragma omp atomic
-        ++cache_hit_count;
-        #endif
     } else if (k - 1 == cache->K_X) {
         // Recursive calculation power
         // (-262537412640768000)^k = (-262537412640768000)^(k-1)*(-262537412640768000)
@@ -307,7 +307,8 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
     mpf_clears(C, S, temp, NULL);
 
     #ifdef DEBUG
-    printf("Cache hit count: %d\n", cache_hit_count);
+    printf("Cache hit count: %lu\n", cache_hit_count);
+    printf("Cache hit ratio: %.2f%%\n", (double)cache_hit_count / (iterations * 2) * 100);
     #endif
 }
 
@@ -363,7 +364,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
                 // Copy character block
                 size_t block_length = block_end - block_start;
-                if (buffer_index + block_length >= buffer_size) {
+                if (buffer_index + block_length > buffer_size - 1) {
                     // Buffer full, write to file
                     fwrite(buffer, sizeof(char), buffer_index, file);
                     buffer_index = 0;
@@ -377,7 +378,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
                 // Add spaces (do not add to the last block)
                 if (block_end < line_end) {
-                    if (buffer_index >= buffer_size - 1) {
+                    if (buffer_index > buffer_size - 1) {
                         // Buffer full, write to file
                         fwrite(buffer, sizeof(char), buffer_index, file);
                         buffer_index = 0;
@@ -392,7 +393,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
             // Add line breaks (do not add to the last line)
             if (line_end <= digits) {
-                if (buffer_index >= buffer_size - 1) {
+                if (buffer_index > buffer_size - 1) {
                     // Buffer full, write to file
                     fwrite(buffer, sizeof(char), buffer_index, file);
                     buffer_index = 0;
