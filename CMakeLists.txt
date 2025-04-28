@@ -23,9 +23,9 @@ option(ENABLE_CACHE "Enable cache for large calculations" ON)
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     # Basic optimization
     if(MSVC)
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /O2 /fp:fast")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /O2 /DNDEBUG /fp:fast /fopenmp")
     else()
-        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -ffast-math")
+        set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG -ffast-math -fopenmp")
     endif()
 
     # SIMD instruction set optimization
@@ -61,6 +61,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         endif()
     endif()
 else()
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -fopenmp")
     # Debug mode configuration
     add_compile_definitions(DEBUG)
 endif()
