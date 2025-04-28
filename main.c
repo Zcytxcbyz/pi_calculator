@@ -8,14 +8,15 @@
 void print_usage(const char* program_name) {
     printf("Usage: %s [options]\n", program_name);
     printf("Options:\n");
-    printf("  -d <digits>    Number of digits to calculate (default: 1000)\n");
-    printf("  -o <filename>  Output file name (default: pi.txt)\n");
-    printf("  -t <threads>   Number of threads to use (default: number of CPU cores)\n");
-    printf("  -f             Format output (default: unformatted)\n");
-    printf("  -c             Disable output file\n");
-    printf("  -b <size>      Set buffer size in bytes (default: 65536)\n");
-    printf("  -s <schedule>  Set OpenMP schedule type (static, dynamic, guided) and chunk size (default: guided)\n");
-    printf("  -h             Show this help message\n");
+    printf("  -d(--digits) <digits>     Number of digits to calculate (default: 1000)\n");
+    printf("  -o(--output) <filename>   Output file name (default: pi.txt)\n");
+    printf("  -t(--thread) <threads>    Number of threads to use (default: number of CPU cores)\n");
+    printf("  -f(--format)              Format output (default: unformatted)\n");
+    printf("  --disable-output          Disable output file\n");
+    printf("  --buffer-size <size>      Set buffer size in bytes (default: 65536)\n");
+    printf("  --schedule <schedule>     Set OpenMP schedule type (static, dynamic, guided) and chunk size (default: guided)\n");
+    printf("  --block-size <size>       Set block size for factorial calculation (default: 8)\n");
+    printf("  -h(--help)                Show this help message\n");
 }
 
 int main(int argc, char* argv[]) {
@@ -27,26 +28,27 @@ int main(int argc, char* argv[]) {
     size_t buffer_size = 65536;    // Default buffer size
     char* omp_schedule = "guided"; // Default OpenMP schedule type
     int chunk_size = 1;            // Default chunk size
+    unsigned long block_size = 8;  // Default block size for factorial
 
     // Analyze command-line parameters
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-d") == 0 && i + 1 < argc) {
+        if ((strcmp(argv[i], "-d") == 0 || strcmp(argv[i], "--digits") == 0) && i + 1 < argc) {
             digits = strtoul(argv[++i], NULL, 10);
-        } else if (strcmp(argv[i], "-o") == 0 && i + 1 < argc) {
+        } else if ((strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0) && i + 1 < argc) {
             output_file = argv[++i];
-        } else if (strcmp(argv[i], "-t") == 0 && i + 1 < argc) {
+        } else if ((strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--thread") == 0) && i + 1 < argc) {
             num_threads = atoi(argv[++i]);
-        } else if (strcmp(argv[i], "-f") == 0) {
+        } else if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--format") == 0) {
             format_output = true;
-        } else if (strcmp(argv[i], "-c") == 0) {
+        } else if (strcmp(argv[i], "--disable-output") == 0) {
             enable_output = 0;
-        } else if (strcmp(argv[i], "-b") == 0 && i + 1 < argc) {
+        } else if (strcmp(argv[i], "--buffer-size") == 0 && i + 1 < argc) {
             buffer_size = strtoul(argv[++i], NULL, 10);
             if (buffer_size < 1024) {
                 fprintf(stderr, "Buffer size must be at least 1024 bytes.\n");
                 return 1;
             }
-        } else if (strcmp(argv[i], "-s") == 0 && i + 1 < argc) {
+        } else if (strcmp(argv[i], "--schedule") == 0 && i + 1 < argc) {
             char* schedule_arg = argv[++i];
             char* comma_pos = strchr(schedule_arg, ',');
             if (comma_pos) {
@@ -68,7 +70,13 @@ int main(int argc, char* argv[]) {
                 fprintf(stderr, "Invalid OpenMP schedule type: %s\n", omp_schedule);
                 return 1;
             }
-        } else if (strcmp(argv[i], "-h") == 0) {
+        } else if (strcmp(argv[i], "--block-size") == 0 && i + 1 < argc) {
+            block_size = strtoul(argv[++i], NULL, 10);
+            if (block_size < 1) {
+                fprintf(stderr, "Block size must be at least 1.\n");
+                return 1;
+            }
+        } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             print_usage(argv[0]);
             return 0;
         } else {
@@ -84,7 +92,7 @@ int main(int argc, char* argv[]) {
     mpf_init2(pi, (digits + 2) * log2(10)); // Pre allocate sufficient precision
 
     double start_time = omp_get_wtime();
-    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size);
+    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size);
     double end_time = omp_get_wtime();
 
     double total_time = end_time - start_time;

@@ -116,21 +116,23 @@ Run the program with the following options:
 
 ### Options
 
-- `-d <digits>`: Specify the number of digits to calculate (default: 1000).
+- `-d(--digits) <digits>`: Specify the number of digits to calculate (default: 1000).
 
-- `-o <filename>`: Specify the output file name (default: pi.txt).
+- `-o(--output) <filename>`: Specify the output file name (default: pi.txt).
 
-- `-t <threads>`: Specify the number of threads to use (default: number of CPU cores).
+- `-t(--thread) <threads>`: Specify the number of threads to use (default: number of CPU cores).
 
-- `-f`: Format output (default: unformatted);
+- `-f(--format)`: Format output (default: unformatted);
 
-- `-c`: Disable output file
+- `--disable-output`: Disable output file
 
-- `-b <size>`: Set buffer size in bytes (default: 65536)
+- `--buffer-size <size>`: Set buffer size in bytes (default: 65536)
 
-- `-s <schedule>`: Set OpenMP schedule type (static, dynamic, guided) and chunk size (default: guided)
+- `--schedule <schedule>`: Set OpenMP schedule type (static, dynamic, guided) and chunk size (default: guided)
 
-- `-h`: Display the help message.
+- `--block-size <size>`: Set block size for factorial calculation (default: 8)
+
+- `-h(--help)`: Display the help message.
 
 ### Examples
 

@@ -17,6 +17,9 @@ static mpz_t CONST_L_ADD;   // CONST_L_ADD = 13591409
 typedef struct {
     mpf_t S, term, temp_f;
     mpz_t temp, M, L, X, K, k_fact, three_k_fact, six_k_fact;
+    // Block factorial variables
+    mpz_t block_prod; // Block product for block factorial
+    unsigned long block_size; // Block size for block factorial
 } ThreadVariables;
 
 #ifdef ENABLE_CACHE
@@ -44,12 +47,14 @@ void init_thread_variables(ThreadVariables* var) {
     mpf_init_set_ui(var->S, 0);
     mpf_inits(var->term, var->temp_f, NULL);
     mpz_inits(var->temp, var->M, var->L, var->X, var->K, var->k_fact, var->three_k_fact, var->six_k_fact, NULL);
+    mpz_init(var->block_prod); // Initialize block product
 }
 
 // Clean up thread variables
 void clean_thread_variables(ThreadVariables* var) {
     mpf_clears(var->S, var->term, var->temp_f, NULL);
     mpz_clears(var->temp, var->M, var->L, var->X, var->K, var->k_fact, var->three_k_fact, var->six_k_fact, NULL);
+    mpz_clear(var->block_prod); // Clean up block product
 }
 
 #ifdef ENABLE_CACHE
@@ -85,6 +90,20 @@ void set_cache(unsigned long k, ThreadCache* cache, ThreadVariables* var) {
 }
 #endif
 
+#ifdef ENABLE_BLOCK_FACTORIAL
+// Block factorial calculation
+void block_factorial(unsigned long start, unsigned long end, unsigned long block_size, mpz_t block_prod, mpz_t fact) {
+    for (unsigned long i = start; i <= end; i += block_size) {
+        unsigned long block_end = (i + block_size <= end) ? i + block_size : end + 1;
+        mpz_set_ui(block_prod, 1);
+        for (unsigned long j = i; j < block_end; j++) {
+            mpz_mul_ui(block_prod, block_prod, j);
+        }
+        mpz_mul(fact, fact, block_prod);
+    }
+}
+#endif
+
 // Calculate M = (6k)! / ((3k)! * (k!)^3)
 #ifdef ENABLE_CACHE
 void calculate_M(unsigned long k, ThreadVariables* var, ThreadCache* cache) {
@@ -111,16 +130,26 @@ void calculate_M(unsigned long k, ThreadVariables* var) {
         // Calculate 3k! = 3(k-1)! * [3(k-1)+1, 3(k-1)+2, ..., 3k]
         unsigned long prev_3k = 3 * (k - 1);
         mpz_set(var->three_k_fact, cache->three_k_fact);
+        #ifdef ENABLE_BLOCK_FACTORIAL
+        block_factorial(prev_3k + 1, 3 * k, var->block_size, var->block_prod, var->three_k_fact);
+        #else
+        unsigned long prev_3k = 3 * (k - 1);
+        mpz_set(var->three_k_fact, cache->three_k_fact);
         for (unsigned long i = prev_3k + 1; i <= 3 * k; i++) {
             mpz_mul_ui(var->three_k_fact, var->three_k_fact, i);
         }
+        #endif
 
         // Calculate 6k! = 6(k-1)! * [6(k-1)+1, ..., 6k]
         unsigned long prev_6k = 6 * (k - 1);
         mpz_set(var->six_k_fact, cache->six_k_fact);
+        #ifdef ENABLE_BLOCK_FACTORIAL
+        block_factorial(prev_6k + 1, 6 * k, var->block_size, var->block_prod, var->six_k_fact);
+        #else
         for (unsigned long i = prev_6k + 1; i <= 6 * k; i++) {
             mpz_mul_ui(var->six_k_fact, var->six_k_fact, i);
         }
+        #endif
 
         #ifdef DEBUG
         #pragma omp atomic
@@ -181,7 +210,7 @@ void calculate_term(unsigned long k, ThreadVariables* var) {
 }
 
 // Chudnovsky algorithm calculates PI
-void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* omp_schedule, int chunk_size) {
+void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* omp_schedule, int chunk_size, unsigned long block_size) {
     // Set sufficient precision
     mpf_set_default_prec((digits + 2) * log2(10));
 
@@ -242,6 +271,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
 
         ThreadVariables var; // Thread private variables
         init_thread_variables(&var); // Initialize thread variables
+        var.block_size = block_size; // Set block size for block factorial
 
         #ifdef ENABLE_CACHE
         ThreadCache cache; // Thread var cache

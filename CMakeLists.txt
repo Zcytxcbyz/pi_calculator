@@ -18,6 +18,7 @@ option(ENABLE_SIMD "Enable SIMD instructions (AVX2/SSE4)" ON)
 option(ENABLE_LTO "Enable Link Time Optimization (LTO)" ON)
 option(BUILD_STATIC "Build as static executable" OFF)
 option(ENABLE_CACHE "Enable cache for large calculations" ON)
+option(ENABLE_BLOCK_FACTORIAL "Enable block factorial optimization" ON)
 
 # Compiler optimization configuration
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -79,6 +80,11 @@ endif()
 # Cache configuration
 if(ENABLE_CACHE)
     add_compile_definitions(ENABLE_CACHE)
+endif()
+
+# Block factorial optimization configuration
+if(ENABLE_BLOCK_FACTORIAL)
+    add_compile_definitions(ENABLE_BLOCK_FACTORIAL)
 endif()
 
 # Executable file configuration
