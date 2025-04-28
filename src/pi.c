@@ -364,7 +364,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
                 // Copy character block
                 size_t block_length = block_end - block_start;
-                if (buffer_index + block_length > buffer_size - 1) {
+                if (buffer_index + block_length >= buffer_size) {
                     // Buffer full, write to file
                     fwrite(buffer, sizeof(char), buffer_index, file);
                     buffer_index = 0;
