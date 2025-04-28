@@ -107,7 +107,9 @@ void calculate_M(unsigned long k, ThreadVariables* var) {
         // k! = (k-1)!*k
         // (3k)! = (3k-1)!*(3k)
         // (6k)! = (6k-1)!*(6k)
-        mpz_mul_ui(var->six_k_fact, cache->six_k_fact, 6 * k);
+
+        // Calculate k! = (k-1)! * k
+        mpz_mul_ui(var->k_fact, cache->k_fact, k);
 
         // Calculate 3k! = 3(k-1)! * [3(k-1)+1, 3(k-1)+2, ..., 3k]
         unsigned long prev_3k = 3 * (k - 1);
