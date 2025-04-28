@@ -29,12 +29,9 @@ typedef struct {
 
 // Initialize constants (executed before entering the parallel region for the first time)
 static void init_constants() {
-    #pragma omp single
-    {
-        mpz_init_set_str(CONST_X_BASE, "-262537412640768000", 10);
-        mpz_init_set_ui(CONST_L_K, 545140134);
-        mpz_init_set_ui(CONST_L_ADD, 13591409);
-    }
+    mpz_init_set_str(CONST_X_BASE, "-262537412640768000", 10);
+    mpz_init_set_ui(CONST_L_K, 545140134);
+    mpz_init_set_ui(CONST_L_ADD, 13591409);
 }
 
 // Clean up constants (executed after exiting the parallel region)
