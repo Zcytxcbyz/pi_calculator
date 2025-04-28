@@ -6,7 +6,7 @@
 #include <string.h>
 
 #ifdef DEBUG
-int cache_hit_count = 0;
+unsigned long cache_hit_count = 0; // Count cache hits
 #endif
 
 static mpz_t CONST_X_BASE;  // CONST_X_BASE = -262537412640768000
@@ -307,7 +307,8 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
     mpf_clears(C, S, temp, NULL);
 
     #ifdef DEBUG
-    printf("Cache hit count: %d\n", cache_hit_count);
+    printf("Cache hit count: %lu\n", cache_hit_count);
+    printf("Cache hit ratio: %.2f%%\n", (double)cache_hit_count / (iterations * 2) * 100);
     #endif
 }
 
@@ -363,7 +364,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
                 // Copy character block
                 size_t block_length = block_end - block_start;
-                if (buffer_index + block_length >= buffer_size) {
+                if (buffer_index + block_length > buffer_size - 1) {
                     // Buffer full, write to file
                     fwrite(buffer, sizeof(char), buffer_index, file);
                     buffer_index = 0;
@@ -377,7 +378,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
                 // Add spaces (do not add to the last block)
                 if (block_end < line_end) {
-                    if (buffer_index >= buffer_size - 1) {
+                    if (buffer_index > buffer_size - 1) {
                         // Buffer full, write to file
                         fwrite(buffer, sizeof(char), buffer_index, file);
                         buffer_index = 0;
@@ -392,7 +393,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
             // Add line breaks (do not add to the last line)
             if (line_end <= digits) {
-                if (buffer_index >= buffer_size - 1) {
+                if (buffer_index > buffer_size - 1) {
                     // Buffer full, write to file
                     fwrite(buffer, sizeof(char), buffer_index, file);
                     buffer_index = 0;
