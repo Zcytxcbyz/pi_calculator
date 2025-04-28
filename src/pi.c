@@ -102,7 +102,7 @@ void calculate_M(unsigned long k, ThreadVariables* var) {
         mpz_set_ui(var->three_k_fact, 1);
         mpz_set_ui(var->six_k_fact, 1);
     #ifdef ENABLE_CACHE
-    } else if (k - 1 == cache->k_M && k > 1) {
+    } else if (k - 1 == cache->k_M && k >= 1) {
         // Recursive calculation of factorial
         // k! = (k-1)!*k
         // (3k)! = (3k-1)!*(3k)
@@ -159,7 +159,7 @@ void calculate_X(unsigned long k, ThreadVariables* var) {
         // K = 0 -> X = 1
         mpz_set_ui(var->X, 1);
     #ifdef ENABLE_CACHE
-    } else if (k - 1 == cache->K_X && k > 1) {
+    } else if (k - 1 == cache->K_X && k >= 1) {
         // Recursive calculation power
         // (-262537412640768000)^k = (-262537412640768000)^(k-1)*(-262537412640768000)
         mpz_mul(var->X, cache->X, CONST_X_BASE);
