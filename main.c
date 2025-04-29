@@ -15,7 +15,9 @@ void print_usage(const char* program_name) {
     printf("  --disable-output          Disable output file\n");
     printf("  --buffer-size <size>      Set buffer size in bytes (default: 65536)\n");
     printf("  --schedule <schedule>     Set OpenMP schedule type (static, dynamic, guided) and chunk size (default: guided)\n");
+    #ifdef ENABLE_BLOCK_FACTORIAL
     printf("  --block-size <size>       Set block size for factorial calculation (default: 8)\n");
+    #endif
     printf("  -h(--help)                Show this help message\n");
 }
 
@@ -28,7 +30,9 @@ int main(int argc, char* argv[]) {
     size_t buffer_size = 65536;    // Default buffer size
     char* omp_schedule = "guided"; // Default OpenMP schedule type
     int chunk_size = 1;            // Default chunk size
+    #ifdef ENABLE_BLOCK_FACTORIAL
     unsigned long block_size = 8;  // Default block size for factorial
+    #endif
 
     // Analyze command-line parameters
     for (int i = 1; i < argc; i++) {
@@ -70,12 +74,14 @@ int main(int argc, char* argv[]) {
                 fprintf(stderr, "Invalid OpenMP schedule type: %s\n", omp_schedule);
                 return 1;
             }
+        #ifdef ENABLE_BLOCK_FACTORIAL
         } else if (strcmp(argv[i], "--block-size") == 0 && i + 1 < argc) {
             block_size = strtoul(argv[++i], NULL, 10);
             if (block_size < 1) {
                 fprintf(stderr, "Block size must be at least 1.\n");
                 return 1;
             }
+        #endif
         } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             print_usage(argv[0]);
             return 0;
@@ -92,7 +98,11 @@ int main(int argc, char* argv[]) {
     mpf_init2(pi, (digits + 2) * log2(10)); // Pre allocate sufficient precision
 
     double start_time = omp_get_wtime();
+    #ifdef ENABLE_BLOCK_FACTORIAL
     calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size);
+    #else
+    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size);
+    #endif
     double end_time = omp_get_wtime();
 
     double total_time = end_time - start_time;

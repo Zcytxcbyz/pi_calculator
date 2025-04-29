@@ -104,37 +104,5 @@ target_link_libraries(pi_calculator PRIVATE
     OpenMP::OpenMP_C
 )
 
-# Define macros for copying dependent libraries
-function(copy_windows_dependencies target)
-    if(WIN32 AND CMAKE_C_COMPILER_ID STREQUAL "GNU")  # Only handle MinGW environments
-        # Retrieve the bin directory of MinGW (inferred from compiler path)
-        get_filename_component(MINGW_BIN_DIR ${CMAKE_C_COMPILER} DIRECTORY)
-        get_filename_component(MINGW_BIN_DIR ${MINGW_BIN_DIR}/../bin ABSOLUTE)
-
-        # List of DLLs that need to be copied
-        set(REQUIRED_DLLS
-            "${MINGW_BIN_DIR}/libgmp-10.dll"   # GMP dynamic library
-            "${MINGW_BIN_DIR}/libgcc_s_seh-1.dll"
-            "${MINGW_BIN_DIR}/libgomp-1.dll"
-            "${MINGW_BIN_DIR}/libwinpthread-1.dll"
-        )
-
-        # Add copy command
-        foreach(DLL ${REQUIRED_DLLS})
-            add_custom_command(TARGET ${target} POST_BUILD
-                COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${DLL}"
-                "$<TARGET_FILE_DIR:${target}>"
-                COMMENT "Copying ${DLL} to output directory..."
-            )
-        endforeach()
-    endif()
-endfunction()
-
-if(NOT BUILD_STATIC)
-    # Call Windows dependency copy macro
-    copy_windows_dependencies(pi_calculator)
-endif()
-
 # Installation rules
 install(TARGETS pi_calculator DESTINATION bin)
