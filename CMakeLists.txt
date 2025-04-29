@@ -22,6 +22,7 @@ option(ENABLE_BLOCK_FACTORIAL "Enable block factorial optimization" ON)
 
 # Compiler optimization configuration
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    message(STATUS "Release mode enabled")
     # Basic optimization
     if(MSVC)
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /O2 /DNDEBUG /fp:fast /fopenmp")
@@ -42,6 +43,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
                 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -mavx2 -mbmi2 -mfma")
             endif()
         endif()
+        message(STATUS "SIMD instructions enabled")
     endif()
 
     # Link-Time Optimization (LTO)
@@ -57,6 +59,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
                 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
                 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -flto")
             endif()
+            message(STATUS "Link-Time Optimization (LTO) enabled")
         else()
             message(WARNING "LTO not supported: ${output}")
         endif()
@@ -65,6 +68,7 @@ else()
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -fopenmp")
     # Debug mode configuration
     add_compile_definitions(DEBUG)
+    message(STATUS "Debug mode enabled")
 endif()
 
 # Static link configuration
@@ -80,11 +84,13 @@ endif()
 # Cache configuration
 if(ENABLE_CACHE)
     add_compile_definitions(ENABLE_CACHE)
+    message(STATUS "Cache enabled")
 endif()
 
 # Block factorial optimization configuration
 if(ENABLE_BLOCK_FACTORIAL)
     add_compile_definitions(ENABLE_BLOCK_FACTORIAL)
+    message(STATUS "Block factorial optimization enabled")
 endif()
 
 # Executable file configuration
