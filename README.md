@@ -170,6 +170,8 @@ The project supports several build options that can be configured using CMake:
 - `BUILD_STATIC`: Build as a statically linked executable (default: OFF).
 
 - `ENABLE_CACHE`: Enable caching for large calculations (default: ON).
+  
+- `ENABLE_BLOCK_FACTORIAL`: Enable block factorial optimization (default: ON)
 
 To enable or disable these options, pass `-D<option>=ON/OFF` to the `cmake` command. For example:
 
