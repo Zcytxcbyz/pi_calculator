@@ -148,7 +148,7 @@ Run the program with the following options:
 
 3. Calculate π to 1000 digits without saving to a file:
     ```bash
-    ./pi_calculator -d 1000 -c
+    ./pi_calculator --digits 1000 --disable-output
     ```
 
 ## Performance Notes
