@@ -132,6 +132,10 @@ Run the program with the following options:
 
 - `--block-size <size>`: Set block size for factorial calculation (default: 8)
 
+- `--raw`: Output raw digits only (no header, no `3.` line, no formatting)
+
+- `--quiet`: Suppress all informational output (errors still go to stderr)
+
 - `-h(--help)`: Display the help message.
 
 ### Examples
@@ -149,6 +153,14 @@ Run the program with the following options:
 3. Calculate π to 1000 digits without saving to a file:
     ```bash
     ./pi_calculator --digits 1000 --disable-output
+    ```
+4. Generate a raw digit file silently:
+   ```bash
+   ./pi_calculator -d 10000 --raw --quiet -o pi_raw.txt
+   ```
+5. Calculate pi without any terminal output:
+    ```bash
+    ./pi_calculator -d 5000 --quiet
     ```
 
 ## Performance Notes
@@ -170,7 +182,7 @@ The project supports several build options that can be configured using CMake:
 - `BUILD_STATIC`: Build as a statically linked executable (default: OFF).
 
 - `ENABLE_CACHE`: Enable caching for large calculations (default: ON).
-  
+
 - `ENABLE_BLOCK_FACTORIAL`: Enable block factorial optimization (default: ON)
 
 To enable or disable these options, pass `-D<option>=ON/OFF` to the `cmake` command. For example:

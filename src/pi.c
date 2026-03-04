@@ -348,19 +348,18 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
     #endif
 }
 
-void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time, bool format_output, size_t buffer_size) {
+void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time, bool format_output, size_t buffer_size, int raw_output) {
     FILE* file = fopen(filename, "w");
     if (!file) {
         perror("Failed to open file");
         return;
     }
 
-    // Write header
-    fprintf(file, "Pi calculated to %lu digits. ", digits);
-    fprintf(file, "Computation time: %.2f seconds.\n\n", computation_time);
-
-    // Write the first two digits of PI
-    fprintf(file, "3.\n");
+    // Write header only if not in raw mode
+    if (!raw_output) {
+        fprintf(file, "Pi calculated to %lu digits. ", digits);
+        fprintf(file, "Computation time: %.2f seconds.\n\n", computation_time);
+    }
 
     mp_exp_t exp;
     // Obtain the string representation of PI
@@ -379,12 +378,24 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
         return;
     }
 
+    // In raw mode: write "3." + digits (no extra newline after "3.")
+    fprintf(file,"3.");
+    if (!raw_output) {
+        fprintf(file, "\n");
+    }
+
     #ifdef DEBUG
     int flush_count = 0; // Count the number of times the buffer is flushed
     #endif
 
     // Allocate buffer dynamically based on the specified size
     char* buffer = (char*)malloc(buffer_size);
+    if (!buffer) {
+        perror("malloc failed");
+        free(pi_str);
+        fclose(file);
+        return;
+    }
     size_t buffer_index = 0;
 
     if(format_output) {

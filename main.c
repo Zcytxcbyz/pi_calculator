@@ -18,6 +18,8 @@ void print_usage(const char* program_name) {
     #ifdef ENABLE_BLOCK_FACTORIAL
     printf("  --block-size <size>       Set block size for factorial calculation (default: 8)\n");
     #endif
+    printf("  --raw                     Output raw digits only (no header, no \"3.\" line, no formatting)\n");
+    printf("  --quiet                   Suppress all informational output (errors still go to stderr)\n");
     printf("  -h(--help)                Show this help message\n");
 }
 
@@ -30,6 +32,8 @@ int main(int argc, char* argv[]) {
     size_t buffer_size = 65536;    // Default buffer size
     char* omp_schedule = "guided"; // Default OpenMP schedule type
     int chunk_size = 1;            // Default chunk size
+    int raw_output = 0;            // flag for --raw
+    int quiet = 0;                 // flag for --quiet
     #ifdef ENABLE_BLOCK_FACTORIAL
     unsigned long block_size = 8;  // Default block size for factorial
     #endif
@@ -82,6 +86,10 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
         #endif
+        } else if (strcmp(argv[i], "--raw") == 0) {
+            raw_output = 1;
+        } else if (strcmp(argv[i], "--quiet") == 0) {
+            quiet = 1;
         } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             print_usage(argv[0]);
             return 0;
@@ -92,7 +100,9 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    printf("Calculating pi to %lu digits using %d threads...\n", digits, num_threads);
+    if (!quiet) {
+        printf("Calculating pi to %lu digits using %d threads...\n", digits, num_threads);
+    }
 
     mpf_t pi;
     mpf_init2(pi, (digits + 2) * log2(10)); // Pre allocate sufficient precision
@@ -106,11 +116,15 @@ int main(int argc, char* argv[]) {
     double end_time = omp_get_wtime();
 
     double total_time = end_time - start_time;
-    printf("Total time: %.2f seconds\n", total_time);
+    if (!quiet) {
+        printf("Total time: %.2f seconds\n", total_time);
+    }
 
     if(enable_output) {
-        write_pi_to_file(pi, digits, output_file, total_time, format_output, buffer_size);
-        printf("Result written to %s\n", output_file);
+        write_pi_to_file(pi, digits, output_file, total_time, format_output, buffer_size, raw_output);
+        if (!quiet) {
+            printf("Result written to %s\n", output_file);
+        }
     }
 
     mpf_clear(pi);
