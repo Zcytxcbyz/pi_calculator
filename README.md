@@ -156,17 +156,21 @@ Run the program with the following options:
     ```bash
     ./pi_calculator --digits 1000 --disable-output
     ```
+
 4. Generate a raw digit file silently:
    ```bash
    ./pi_calculator -d 10000 --raw --quiet -o pi_raw.txt
    ```
+
 5. Calculate pi without any terminal output:
     ```bash
     ./pi_calculator -d 5000 --quiet
     ```
+
 6. Use dynamic scheduling with chunk size 50 to calculate 1 million digits:
    ```bash
    ./pi_calculator -d 1000000 --schedule dynamic,50
+   ```
 
 ## Performance Notes
 
