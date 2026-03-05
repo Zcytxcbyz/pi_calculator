@@ -198,7 +198,7 @@ int main(int argc, char* argv[]) {
             char computed[1003];
             computed[0] = '3';
             computed[1] = '.';
-            strncpy(computed + 2, pi_str, 1000);
+            strncpy(computed + 2, pi_str + 1, 1000);
             computed[1002] = '\0';
 
             if (strcmp(computed, KNOWN_PI_1000) == 0) {
