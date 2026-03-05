@@ -136,6 +136,12 @@ Run the program with the following options:
 
 - `--quiet`: Suppress all informational output (errors still go to stderr)
 
+- `--stdout`: Write result to standard output instead of a file (overrides -o). Warning for large digit counts.
+
+- `--progress`: Show progress during long calculations (disabled by --quiet).
+
+- `--time-file <filename>`: Write computation time to a separate file (even with --quiet).
+
 - `--verify`: Verify the first 1000 digits of the computed result against a known reference. Exits with code 2 if verification fails.
 
 - `-v(--version)`: Display the program version and exit.
