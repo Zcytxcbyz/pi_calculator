@@ -1,4 +1,5 @@
 #include "pi.h"
+#include "pi_ref.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +25,7 @@ void print_usage(const char* program_name) {
     printf("  --stdout                  Write result to standard output instead of a file (overrides -o)\n");
     printf("  --progress                Show progress during long calculations (disabled by --quiet)\n");
     printf("  --time-file <filename>    Write computation time to a separate file (even with --quiet)\n");
+    printf("  --verify                  Verify first 1000 digits of result against known value (exit code 2 if mismatch)\n");
     printf("  -v(--version)             Show program version and exit\n");
     printf("  -h(--help)                Show this help message\n");
 }
@@ -38,10 +40,11 @@ int main(int argc, char* argv[]) {
     char* omp_schedule = "guided";      // Default OpenMP schedule type
     int chunk_size = 1;                 // Default chunk size
     bool raw_output = false;            // flag for --raw
-    bool quiet_flag = false;                 // flag for --quiet
+    bool quiet_flag = false;            // flag for --quiet
     bool stdout_flag = false;           // flag for --stdout
     bool progress_flag = false;         // flag for --progress
     char* time_file = NULL;             // flag for --time-file
+    bool verify_flag = false;           // flag for --verify
     #ifdef ENABLE_BLOCK_FACTORIAL
     unsigned long block_size = 8;       // Default block size for factorial
     #endif
@@ -104,6 +107,8 @@ int main(int argc, char* argv[]) {
             progress_flag = true;
         } else if (strcmp(argv[i], "--time-file") == 0 && i + 1 < argc) {
             time_file = argv[++i];
+        } else if (strcmp(argv[i], "--verify") == 0) {
+            verify_flag = true;
         } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
             printf("pi_calculator version %s\n", PROJECT_VERSION);
             return 0;
@@ -181,6 +186,35 @@ int main(int argc, char* argv[]) {
             }
         }
     }
+
+    // Verification (if requested)
+    if (verify_flag) {
+        mp_exp_t exp;
+        char* pi_str = mpf_get_str(NULL, &exp, 10, digits + 2, pi);
+        if (!pi_str || exp != 1) {
+            fprintf(stderr, "Verification failed: cannot obtain string representation.\n");
+        } else {
+            // Construct the complete string “3.” + the decimal part
+            char computed[1003];
+            computed[0] = '3';
+            computed[1] = '.';
+            strncpy(computed + 2, pi_str, 1000);
+            computed[1002] = '\0';
+
+            if (strcmp(computed, KNOWN_PI_1000) == 0) {
+                if (!quiet_flag) printf("Verification passed: first 1000 digits match known value.\n");
+            } else {
+                fprintf(stderr, "Verification FAILED: first 1000 digits do NOT match known value.\n");
+                fprintf(stderr, "Computed: %.1000s\n", computed);
+                fprintf(stderr, "Expected: %.1000s\n", KNOWN_PI_1000);
+                mpf_clear(pi);
+                free(pi_str);
+                return 2;
+            }
+            free(pi_str);
+        }
+    }
+
 
     mpf_clear(pi);
 

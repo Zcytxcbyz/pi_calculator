@@ -136,6 +136,8 @@ Run the program with the following options:
 
 - `--quiet`: Suppress all informational output (errors still go to stderr)
 
+- `--verify`: Verify the first 1000 digits of the computed result against a known reference. Exits with code 2 if verification fails.
+
 - `-v(--version)`: Display the program version and exit.
 
 - `-h(--help)`: Display the help message.
@@ -170,6 +172,11 @@ Run the program with the following options:
 6. Use dynamic scheduling with chunk size 50 to calculate 1 million digits:
    ```bash
    ./pi_calculator -d 1000000 --schedule dynamic,50
+   ```
+
+7. Calculate 1 million digits and verify correctness:
+   ```bash
+   ./pi_calculator -d 1000000 --verify
    ```
 
 ## Performance Notes
