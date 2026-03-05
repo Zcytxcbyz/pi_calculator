@@ -155,7 +155,7 @@ int main(int argc, char* argv[]) {
 
     double total_time = end_time - start_time;
     if (!quiet_flag) {
-        printf("Total time: %.2f seconds\n", total_time);
+        printf("\nTotal time: %.2f seconds\n", total_time);
     }
 
     if (enable_output) {
