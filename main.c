@@ -163,6 +163,7 @@ int main(int argc, char* argv[]) {
             // Output to stdout
             write_pi_to_stream(pi, digits, stdout, total_time, format_output, buffer_size, raw_output);
             if (!quiet_flag) {
+                fflush(stdout);
                 fprintf(stderr, "\nResult written to stdout\n");
             }
         } else {
