@@ -24,8 +24,9 @@ execute_process(
 if(NOT GIT_VERSION)
     set(GIT_VERSION "unknown")
 endif()
-add_compile_definitions(PROJECT_VERSION="${GIT_VERSION}")
-message(STATUS "Project version: ${GIT_VERSION}")
+string(REGEX REPLACE "-dirty$" "" GIT_VERSION_CLEAN "${GIT_VERSION}")
+add_compile_definitions(PROJECT_VERSION="${GIT_VERSION_CLEAN}")
+message(STATUS "Project version: ${GIT_VERSION_CLEAN} (original: ${GIT_VERSION})")
 
 # User options configuration
 option(ENABLE_SIMD "Enable SIMD instructions (AVX2/SSE4)" ON)
