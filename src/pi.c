@@ -275,9 +275,16 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
     // Initialize global constants
     init_constants();
 
-    #pragma omp parallel shared(S, CONST_X_BASE, CONST_L_K, CONST_L_ADD)
-    {
+    // Array Block Reduction: Assigns each thread an independent segment and slot
+    int max_threads = num_threads;  // Number of threads actually used (specified by the user)
+    mpf_t* thread_S = (mpf_t*) malloc(max_threads * sizeof(mpf_t));
+    for (int i = 0; i < max_threads; i++) {
+        mpf_init_set_ui(thread_S[i], 0);
+    }
 
+    #pragma omp parallel shared(S, thread_S, CONST_X_BASE, CONST_L_K, CONST_L_ADD, completed_count, show_progress)
+    {
+        int tid = omp_get_thread_num();  // Get the current thread ID
         ThreadVariables var; // Thread private variables
         init_thread_variables(&var); // Initialize thread variables
         #ifdef ENABLE_BLOCK_FACTORIAL
@@ -321,6 +328,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
             set_cache(k, &cache, &var);
             #endif
 
+            // Progress display: Atomic counter update (only when progress is enabled)
             if (show_progress) {
                 #pragma omp atomic
                 ++completed_count;
@@ -328,7 +336,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
 
             if (show_progress && (completed_count % 1000 == 0)) {
                 // Use the thread ID to determine execution on the main thread
-                if (omp_get_thread_num() == 0) {
+                if (tid == 0) {
                     fprintf(stderr, "\rProgress: %.2f%%", (double)completed_count / iterations * 100);
                     fflush(stderr);
                 }
@@ -336,11 +344,17 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
 
         }
 
+        /* This code is deprecated
         // Merge thread private variables into global variables
         #pragma omp critical
         {
             mpf_add(S, S, var.S);
         }
+        */
+
+
+        // Store the segment of this thread into the corresponding array slot
+        mpf_set(thread_S[tid], var.S);
 
         clean_thread_variables(&var); // Clean up thread variables
 
@@ -349,6 +363,13 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
         #endif
 
     }
+
+    // The main thread merges all parts
+    for (int i = 0; i < max_threads; i++) {
+        mpf_add(S, S, thread_S[i]);
+        mpf_clear(thread_S[i]);
+    }
+    free(thread_S);
 
     // Calculate PI = C / S
     mpf_div(pi, C, S);
