@@ -4,6 +4,7 @@
 #include <gmp.h>
 #include <math.h>
 #include <time.h>
+#include <stdio.h>
 #include <stdbool.h>
 
 #ifdef ENABLE_BLOCK_FACTORIAL
@@ -13,9 +14,14 @@
 #endif
 
 // Calculate PI to the specified number of digits
-void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* omp_schedule, int chunk_size VAR_BLOCK_SIZE);
+void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* omp_schedule, int chunk_size VAR_BLOCK_SIZE, bool show_progress);
 
-// Write the PI value to a file
-void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time, bool format_output, size_t buffer_size,  int raw_output);
+// Write the PI value to file
+void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time,
+    bool format_output, size_t buffer_size, bool raw_output);
+
+// Write the PI value to stream
+void write_pi_to_stream(const mpf_t pi, unsigned long digits, FILE* stream, double computation_time,
+    bool format_output, size_t buffer_size, bool raw_output);
 
 #endif // PI_H

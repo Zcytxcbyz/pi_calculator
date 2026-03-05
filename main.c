@@ -6,6 +6,7 @@
 #include <omp.h>
 
 void print_usage(const char* program_name) {
+    printf("%s Version %s\n", program_name, PROJECT_VERSION);
     printf("Usage: %s [options]\n", program_name);
     printf("Options:\n");
     printf("  -d(--digits) <digits>     Number of digits to calculate (default: 1000)\n");
@@ -20,6 +21,10 @@ void print_usage(const char* program_name) {
     #endif
     printf("  --raw                     Output raw digits only (no header, no \"3.\" line, no formatting)\n");
     printf("  --quiet                   Suppress all informational output (errors still go to stderr)\n");
+    printf("  --stdout                  Write result to standard output instead of a file (overrides -o)\n");
+    printf("  --progress                Show progress during long calculations (disabled by --quiet)\n");
+    printf("  --time-file <filename>    Write computation time to a separate file (even with --quiet)\n");
+    printf("  -v(--version)             Show program version and exit\n");
     printf("  -h(--help)                Show this help message\n");
 }
 
@@ -27,15 +32,18 @@ int main(int argc, char* argv[]) {
     unsigned long digits = 1000;
     char* output_file = "pi.txt";
     int num_threads = omp_get_max_threads();
-    bool enable_output = true;     // Default to enabled output
-    bool format_output = false;    // Default to unformatted output
-    size_t buffer_size = 65536;    // Default buffer size
-    char* omp_schedule = "guided"; // Default OpenMP schedule type
-    int chunk_size = 1;            // Default chunk size
-    int raw_output = 0;            // flag for --raw
-    int quiet = 0;                 // flag for --quiet
+    bool enable_output = true;          // Default to enabled output
+    bool format_output = false;         // Default to unformatted output
+    size_t buffer_size = 65536;         // Default buffer size
+    char* omp_schedule = "guided";      // Default OpenMP schedule type
+    int chunk_size = 1;                 // Default chunk size
+    bool raw_output = false;            // flag for --raw
+    bool quiet_flag = false;                 // flag for --quiet
+    bool stdout_flag = false;           // flag for --stdout
+    bool progress_flag = false;         // flag for --progress
+    char* time_file = NULL;             // flag for --time-file
     #ifdef ENABLE_BLOCK_FACTORIAL
-    unsigned long block_size = 8;  // Default block size for factorial
+    unsigned long block_size = 8;       // Default block size for factorial
     #endif
 
     // Analyze command-line parameters
@@ -49,7 +57,7 @@ int main(int argc, char* argv[]) {
         } else if (strcmp(argv[i], "-f") == 0 || strcmp(argv[i], "--format") == 0) {
             format_output = true;
         } else if (strcmp(argv[i], "--disable-output") == 0) {
-            enable_output = 0;
+            enable_output = false;
         } else if (strcmp(argv[i], "--buffer-size") == 0 && i + 1 < argc) {
             buffer_size = strtoul(argv[++i], NULL, 10);
             if (buffer_size < 1024) {
@@ -87,9 +95,18 @@ int main(int argc, char* argv[]) {
             }
         #endif
         } else if (strcmp(argv[i], "--raw") == 0) {
-            raw_output = 1;
+            raw_output = true;
         } else if (strcmp(argv[i], "--quiet") == 0) {
-            quiet = 1;
+            quiet_flag = true;
+        } else if (strcmp(argv[i], "--stdout") == 0) {
+            stdout_flag = true;
+        } else if (strcmp(argv[i], "--progress") == 0) {
+            progress_flag = true;
+        } else if (strcmp(argv[i], "--time-file") == 0 && i + 1 < argc) {
+            time_file = argv[++i];
+        } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
+            printf("pi_calculator version %s\n", PROJECT_VERSION);
+            return 0;
         } else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
             print_usage(argv[0]);
             return 0;
@@ -100,7 +117,21 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (!quiet) {
+    // If both --stdout and -o are specified (and the filename is not the default), issue a warning
+    if (stdout_flag && strcmp(output_file, "pi.txt") != 0 && !quiet_flag) {
+        fprintf(stderr, "Warning: --stdout overrides -o, ignoring output file.\n");
+    }
+    // --disable-output takes precedence over --stdout
+    if (!enable_output && stdout_flag) {
+        if (!quiet_flag) fprintf(stderr, "Warning: --disable-output is set, ignoring --stdout.\n");
+        stdout_flag = 0;
+    }
+    // Warning when outputting large numbers to stdout
+    if (stdout_flag && digits > 100000 && !quiet_flag) {
+        fprintf(stderr, "Warning: printing %lu digits to stdout may cause terminal slowdown. Consider redirecting to a file.\n", digits);
+    }
+
+    if (!quiet_flag) {
         printf("Calculating pi to %lu digits using %d threads...\n", digits, num_threads);
     }
 
@@ -108,22 +139,46 @@ int main(int argc, char* argv[]) {
     mpf_init2(pi, (digits + 2) * log2(10)); // Pre allocate sufficient precision
 
     double start_time = omp_get_wtime();
+
+    bool show_progress = progress_flag && !quiet_flag;  // Display only when not in silent mode and progress is enabled.
     #ifdef ENABLE_BLOCK_FACTORIAL
-    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size);
+    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size, show_progress);
     #else
-    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size);
+    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, show_progress);
     #endif
     double end_time = omp_get_wtime();
 
     double total_time = end_time - start_time;
-    if (!quiet) {
+    if (!quiet_flag) {
         printf("Total time: %.2f seconds\n", total_time);
     }
 
-    if(enable_output) {
-        write_pi_to_file(pi, digits, output_file, total_time, format_output, buffer_size, raw_output);
-        if (!quiet) {
-            printf("Result written to %s\n", output_file);
+    if (enable_output) {
+        if (stdout_flag) {
+            // Output to stdout
+            write_pi_to_stream(pi, digits, stdout, total_time, format_output, buffer_size, raw_output);
+            if (!quiet_flag) {
+                fprintf(stderr, "Result written to stdout\n");
+            }
+        } else {
+            // Output to file
+            write_pi_to_file(pi, digits, output_file, total_time, format_output, buffer_size, raw_output);
+            if (!quiet_flag) {
+                printf("Result written to %s\n", output_file);
+            }
+        }
+    }
+
+    if (time_file) {
+        FILE* tf = fopen(time_file, "w");
+        if (!tf) {
+            perror("Failed to open time file");
+        } else {
+            fprintf(tf, "Total time: %.2f seconds\n", total_time);
+            fclose(tf);
+            if (!quiet_flag) {
+                printf("Time written to %s\n", time_file);
+            }
         }
     }
 

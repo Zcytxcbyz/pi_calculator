@@ -13,6 +13,20 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 find_package(GMP REQUIRED)
 find_package(OpenMP REQUIRED)
 
+# Automatically retrieve Git tags
+execute_process(
+        COMMAND git describe --tags --always --dirty
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE GIT_VERSION
+        ERROR_QUIET
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if(NOT GIT_VERSION)
+    set(GIT_VERSION "unknown")
+endif()
+add_compile_definitions(PROJECT_VERSION="${GIT_VERSION}")
+message(STATUS "Project version: ${GIT_VERSION}")
+
 # User options configuration
 option(ENABLE_SIMD "Enable SIMD instructions (AVX2/SSE4)" ON)
 option(ENABLE_LTO "Enable Link Time Optimization (LTO)" ON)

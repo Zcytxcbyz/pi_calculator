@@ -136,6 +136,8 @@ Run the program with the following options:
 
 - `--quiet`: Suppress all informational output (errors still go to stderr)
 
+- `-v(--version)`: Display the program version and exit.
+
 - `-h(--help)`: Display the help message.
 
 ### Examples
@@ -162,6 +164,9 @@ Run the program with the following options:
     ```bash
     ./pi_calculator -d 5000 --quiet
     ```
+6. Use dynamic scheduling with chunk size 50 to calculate 1 million digits:
+   ```bash
+   ./pi_calculator -d 1000000 --schedule dynamic,50
 
 ## Performance Notes
 

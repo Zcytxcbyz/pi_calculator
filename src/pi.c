@@ -215,7 +215,11 @@ void calculate_term(unsigned long k, ThreadVariables* var) {
 }
 
 // Chudnovsky algorithm calculates PI
-void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* omp_schedule, int chunk_size VAR_BLOCK_SIZE) {
+void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* omp_schedule, int chunk_size VAR_BLOCK_SIZE, bool show_progress) {
+    /* completed_count Used solely for progress display;
+     * Does not increment if progress is disabled, avoiding atomic operation overhead */
+    unsigned long long completed_count = 0;
+
     // Set sufficient precision
     mpf_set_default_prec((digits + 2) * log2(10));
 
@@ -317,6 +321,19 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
             set_cache(k, &cache, &var);
             #endif
 
+            if (show_progress) {
+                #pragma omp atomic
+                ++completed_count;
+            }
+
+            if (show_progress && (completed_count % 1000 == 0)) {
+                // Use the thread ID to determine execution on the main thread
+                if (omp_get_thread_num() == 0) {
+                    fprintf(stderr, "\rProgress: %.2f%%", (double)completed_count / iterations * 100);
+                    fflush(stderr);
+                }
+            }
+
         }
 
         // Merge thread private variables into global variables
@@ -348,17 +365,25 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
     #endif
 }
 
-void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time, bool format_output, size_t buffer_size, int raw_output) {
-    FILE* file = fopen(filename, "w");
+// Write the PI value to file
+void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time,
+    bool format_output, size_t buffer_size, bool raw_output) {
+    FILE* file = fopen(filename, raw_output ? "wb" : "w");
     if (!file) {
         perror("Failed to open file");
         return;
     }
+    write_pi_to_stream(pi, digits, file, computation_time, format_output, buffer_size, raw_output);
+    fclose(file);
+}
 
+// Write the PI value to stream
+void write_pi_to_stream(const mpf_t pi, unsigned long digits, FILE* stream, double computation_time,
+    bool format_output, size_t buffer_size, bool raw_output) {
     // Write header only if not in raw mode
     if (!raw_output) {
-        fprintf(file, "Pi calculated to %lu digits. ", digits);
-        fprintf(file, "Computation time: %.2f seconds.\n\n", computation_time);
+        fprintf(stream, "Pi calculated to %lu digits. ", digits);
+        fprintf(stream, "Computation time: %.2f seconds.\n\n", computation_time);
     }
 
     mp_exp_t exp;
@@ -366,7 +391,6 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
     char* pi_str = mpf_get_str(NULL, &exp, 10, digits + 2, pi);
     if (!pi_str) {
         fprintf(stderr, "Failed to convert pi to string\n");
-        fclose(file);
         return;
     }
 
@@ -374,14 +398,13 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
     if(exp != 1) {
         fprintf(stderr, "Unexpected exponent value: %ld\n", exp);
         free(pi_str);
-        fclose(file);
         return;
     }
 
     // In raw mode: write "3." + digits (no extra newline after "3.")
-    fprintf(file,"3.");
+    fprintf(stream,"3.");
     if (!raw_output) {
-        fprintf(file, "\n");
+        fprintf(stream, "\n");
     }
 
     #ifdef DEBUG
@@ -393,7 +416,6 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
     if (!buffer) {
         perror("malloc failed");
         free(pi_str);
-        fclose(file);
         return;
     }
     size_t buffer_index = 0;
@@ -413,7 +435,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
                 size_t block_length = block_end - block_start;
                 if (buffer_index + block_length >= buffer_size) {
                     // Buffer full, write to file
-                    fwrite(buffer, sizeof(char), buffer_index, file);
+                    fwrite(buffer, sizeof(char), buffer_index, stream);
                     buffer_index = 0;
 
                     #ifdef DEBUG
@@ -427,7 +449,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
                 if (block_end < line_end) {
                     if (buffer_index > buffer_size - 1) {
                         // Buffer full, write to file
-                        fwrite(buffer, sizeof(char), buffer_index, file);
+                        fwrite(buffer, sizeof(char), buffer_index, stream);
                         buffer_index = 0;
 
                         #ifdef DEBUG
@@ -442,7 +464,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
             if (line_end <= digits) {
                 if (buffer_index > buffer_size - 1) {
                     // Buffer full, write to file
-                    fwrite(buffer, sizeof(char), buffer_index, file);
+                    fwrite(buffer, sizeof(char), buffer_index, stream);
                     buffer_index = 0;
 
                     #ifdef DEBUG
@@ -455,7 +477,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
         // Write remaining buffer to file
         if (buffer_index > 0) {
-            fwrite(buffer, sizeof(char), buffer_index, file);
+            fwrite(buffer, sizeof(char), buffer_index, stream);
 
             #ifdef DEBUG
             ++flush_count;
@@ -473,7 +495,7 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
             // Copy the chunk to the buffer
             memcpy(buffer, pi_str + offset, chunk);
-            fwrite(buffer, sizeof(char), chunk, file);
+            fwrite(buffer, sizeof(char), chunk, stream);
             offset += chunk;
             remaining -= chunk;
 
@@ -489,5 +511,4 @@ void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename
 
     free(buffer);
     free(pi_str);
-    fclose(file);
 }
