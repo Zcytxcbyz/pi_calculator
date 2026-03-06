@@ -520,10 +520,11 @@ void write_pi_to_stream(const mpf_t pi, unsigned long digits, FILE* stream, doub
         // Write directly without formatting.
         size_t offset = 1; // Skip '3.'
         unsigned long remaining = digits;
+        size_t pi_strlen = strlen(pi_str);
         while (remaining > 0) {
             // Calculate the chunk size
             size_t chunk = (remaining > buffer_size) ? buffer_size : remaining;
-            if (offset + chunk > strlen(pi_str)) chunk = strlen(pi_str) - offset;
+            if (offset + chunk > pi_strlen) chunk = pi_strlen - offset;
 
             // Copy the chunk to the buffer
             memcpy(buffer, pi_str + offset, chunk);

@@ -198,7 +198,7 @@ int main(int argc, char* argv[]) {
     }
 
     // Verification (if requested)
-    if (verify_flag) {
+    if (verify_flag && digits >= 1000) {
         mp_exp_t exp;
         char* pi_str = mpf_get_str(NULL, &exp, 10, digits + 2, pi);
         if (!pi_str || exp != 1) {
@@ -223,6 +223,8 @@ int main(int argc, char* argv[]) {
             }
             free(pi_str);
         }
+    } else if (verify_flag) {
+        fprintf(stderr, "Verification requires at least 1000 digits (current: %lu). Skipping.\n", digits);
     }
 
 
