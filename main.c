@@ -10,46 +10,52 @@ void print_usage(const char* program_name) {
     printf("%s Version %s\n", program_name, PROJECT_VERSION);
     printf("Usage: %s [options]\n", program_name);
     printf("Options:\n");
-    printf("  -d(--digits) <digits>     Number of digits to calculate (default: 1000)\n");
-    printf("  -o(--output) <filename>   Output file name (default: pi.txt)\n");
-    printf("  -t(--thread) <threads>    Number of threads to use (default: number of CPU cores)\n");
-    printf("  -f(--format)              Format output (default: unformatted)\n");
-    printf("  --disable-output          Disable output file\n");
-    printf("  --buffer-size <size>      Set buffer size in bytes (default: 65536)\n");
-    printf("  --schedule <schedule>     Set OpenMP schedule type (static, dynamic, guided) and chunk size (default: guided)\n");
+    printf("  -d(--digits) <digits>             Number of digits to calculate (default: 1000)\n");
+    printf("  -o(--output) <filename>           Output file name (default: pi.txt)\n");
+    printf("  -t(--thread) <threads>            Number of threads to use (default: number of CPU cores)\n");
+    printf("  -f(--format)                      Format output (default: unformatted)\n");
+    printf("  --disable-output                  Disable output file\n");
+    printf("  --buffer-size <size>              Set buffer size in bytes (default: 65536)\n");
+    printf("  --schedule <schedule>             Set OpenMP schedule type (static, dynamic, guided) and chunk size (default: guided)\n");
     #ifdef ENABLE_BLOCK_FACTORIAL
-    printf("  --block-size <size>       Set block size for factorial calculation (default: 8)\n");
+    printf("  --block-size <size>               Set block size for factorial calculation (default: 8)\n");
     #endif
-    printf("  --raw                     Output raw digits only (no header, no \"3.\" line, no formatting)\n");
-    printf("  --quiet                   Suppress all informational output (errors still go to stderr)\n");
-    printf("  --stdout                  Write result to standard output instead of a file (overrides -o)\n");
-    printf("  --progress                Show progress during long calculations (disabled by --quiet)\n");
-    printf("  --progress-freq <num>     Update progress every <num> iterations (default: 1000, only with --progress)\n");
-    printf("  --time-file <filename>    Write computation time to a separate file (even with --quiet)\n");
-    printf("  --verify                  Verify first 1000 digits of result against known value (exit code 2 if mismatch)\n");
-    printf("  -v(--version)             Show program version and exit\n");
-    printf("  -h(--help)                Show this help message\n");
+    printf("  --raw                             Output raw digits only (no header, no \"3.\" line, no formatting)\n");
+    printf("  --quiet                           Suppress all informational output (errors still go to stderr)\n");
+    printf("  --stdout                          Write result to standard output instead of a file (overrides -o)\n");
+    printf("  --progress                        Show progress during long calculations (disabled by --quiet)\n");
+    printf("  --progress-freq <num>             Update progress every <num> iterations (default: 1000, only with --progress)\n");
+    printf("  --time-file <filename>            Write computation time to a separate file (even with --quiet)\n");
+    printf("  --verify                          Verify first 1000 digits of result against known value (exit code 2 if mismatch)\n");
+    printf("  --checkpoint-enable               Enable checkpoint/restart functionality\n");
+    printf("  --checkpoint-freq <N>             Save checkpoint every N iterations (default: 1000)\n");
+    printf("  --checkpoint-file <filename>      Path to checkpoint file (default: pi_checkpoint.dat)\n");
+    printf("  -v(--version)                     Show program version and exit\n");
+    printf("  -h(--help)                        Show this help message\n");
 }
 
 int main(int argc, char* argv[]) {
     unsigned long digits = 1000;
     char* output_file = "pi.txt";
     int num_threads = omp_get_max_threads();
-    bool enable_output = true;          // Default to enabled output
-    bool format_output = false;         // Default to unformatted output
-    size_t buffer_size = 65536;         // Default buffer size
-    char* omp_schedule = "guided";      // Default OpenMP schedule type
-    int chunk_size = 1;                 // Default chunk size
-    bool raw_output = false;            // flag for --raw
-    bool quiet_flag = false;            // flag for --quiet
-    bool stdout_flag = false;           // flag for --stdout
-    bool progress_flag = false;         // flag for --progress
-    int progress_freq = 1000;           // default frequency for progress updates
-    char* time_file = NULL;             // flag for --time-file
-    bool verify_flag = false;           // flag for --verify
+    bool enable_output = true;                      // Default to enabled output
+    bool format_output = false;                     // Default to unformatted output
+    size_t buffer_size = 65536;                     // Default buffer size
+    char* omp_schedule = "guided";                  // Default OpenMP schedule type
+    int chunk_size = 1;                             // Default chunk size
+    bool raw_output = false;                        // flag for --raw
+    bool quiet_flag = false;                        // flag for --quiet
+    bool stdout_flag = false;                       // flag for --stdout
+    bool progress_flag = false;                     // flag for --progress
+    int progress_freq = 1000;                       // default frequency for progress updates
+    char* time_file = NULL;                         // flag for --time-file
+    bool verify_flag = false;                       // flag for --verify
     #ifdef ENABLE_BLOCK_FACTORIAL
-    unsigned long block_size = 8;       // Default block size for factorial
+    unsigned long block_size = 8;                   // Default block size for factorial
     #endif
+    bool checkpoint_enable = false;                 // flag for --checkpoint-enable
+    unsigned long checkpoint_freq = 1000;           // By default, save every 1000 iterations.
+    char* checkpoint_file = "pi_checkpoint.dat";    // Checkpoint File
 
     // Analyze command-line parameters
     for (int i = 1; i < argc; i++) {
@@ -118,6 +124,16 @@ int main(int argc, char* argv[]) {
             time_file = argv[++i];
         } else if (strcmp(argv[i], "--verify") == 0) {
             verify_flag = true;
+        } else if (strcmp(argv[i], "--checkpoint-enable") == 0) {
+            checkpoint_enable = true;
+        } else if (strcmp(argv[i], "--checkpoint-freq") == 0 && i + 1 < argc) {
+            checkpoint_freq = strtoul(argv[++i], NULL, 10);
+            if (checkpoint_freq == 0) {
+                fprintf(stderr, "Error: checkpoint frequency must be positive.\n");
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--checkpoint-file") == 0 && i + 1 < argc) {
+            checkpoint_file = argv[++i];
         } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
             printf("pi_calculator version %s\n", PROJECT_VERSION);
             return 0;
@@ -155,11 +171,35 @@ int main(int argc, char* argv[]) {
     double start_time = omp_get_wtime();
 
     bool show_progress = progress_flag && !quiet_flag;  // Display only when not in silent mode and progress is enabled.
+
+    if (checkpoint_enable) {
+        #ifdef ENABLE_BLOCK_FACTORIAL
+        calculate_pi_checkpoint(pi, digits, num_threads, omp_schedule, chunk_size, block_size,
+                                show_progress, progress_freq, quiet_flag,
+                                checkpoint_freq, checkpoint_file);
+        #else
+        calculate_pi_checkpoint(pi, digits, num_threads, omp_schedule, chunk_size,
+                                show_progress, progress_freq, quiet_flag,
+                                checkpoint_freq, checkpoint_file);
+        #endif
+    } else {
+        #ifdef ENABLE_BLOCK_FACTORIAL
+        calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size,
+                     show_progress, progress_freq);
+        #else
+        calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size,
+                     show_progress, progress_freq);
+        #endif
+    }
+
+    /* This code is deprecated
     #ifdef ENABLE_BLOCK_FACTORIAL
     calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size, show_progress, progress_freq);
     #else
     calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, show_progress, progress_freq);
     #endif
+    */
+
     double end_time = omp_get_wtime();
 
     double total_time = end_time - start_time;

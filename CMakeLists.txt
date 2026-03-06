@@ -123,6 +123,7 @@ endif()
 # Executable file configuration
 add_executable(pi_calculator
     src/pi.c
+    src/checkpoint.c
     main.c
 )
 

@@ -146,6 +146,12 @@ Run the program with the following options:
 
 - `--verify`: Verify the first 1000 digits of the computed result against a known reference. Exits with code 2 if verification fails.
 
+- `--checkpoint-enable`: Enable checkpoint/restart functionality
+
+- `--checkpoint-freq <N>`: Save checkpoint every N iterations (default: 1000)
+
+- `--checkpoint-file <filename>`: Path to checkpoint file (default: pi_checkpoint.dat)
+
 - `-v(--version)`: Display the program version and exit.
 
 - `-h(--help)`: Display the help message.
@@ -186,6 +192,12 @@ Run the program with the following options:
    ```bash
    ./pi_calculator -d 1000000 --verify
    ```
+
+8. Custom frequency and file location:
+    ```bash
+    ./pi_calculator -d 1000000 --checkpoint-enable --checkpoint-freq 5000 --checkpoint-file /mnt/ssd/pi.ckpt
+   ```
+
 
 ## Performance Notes
 
