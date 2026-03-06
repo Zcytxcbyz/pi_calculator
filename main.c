@@ -24,6 +24,7 @@ void print_usage(const char* program_name) {
     printf("  --quiet                   Suppress all informational output (errors still go to stderr)\n");
     printf("  --stdout                  Write result to standard output instead of a file (overrides -o)\n");
     printf("  --progress                Show progress during long calculations (disabled by --quiet)\n");
+    printf("  --progress-freq <num>     Update progress every <num> iterations (default: 1000, only with --progress)\n");
     printf("  --time-file <filename>    Write computation time to a separate file (even with --quiet)\n");
     printf("  --verify                  Verify first 1000 digits of result against known value (exit code 2 if mismatch)\n");
     printf("  -v(--version)             Show program version and exit\n");
@@ -43,6 +44,7 @@ int main(int argc, char* argv[]) {
     bool quiet_flag = false;            // flag for --quiet
     bool stdout_flag = false;           // flag for --stdout
     bool progress_flag = false;         // flag for --progress
+    int progress_freq = 1000;           // default frequency for progress updates
     char* time_file = NULL;             // flag for --time-file
     bool verify_flag = false;           // flag for --verify
     #ifdef ENABLE_BLOCK_FACTORIAL
@@ -105,6 +107,13 @@ int main(int argc, char* argv[]) {
             stdout_flag = true;
         } else if (strcmp(argv[i], "--progress") == 0) {
             progress_flag = true;
+        } else if (strcmp(argv[i], "--progress-freq") == 0 && i + 1 < argc) {
+            int freq = atoi(argv[++i]);
+            if (freq <= 0) {
+                fprintf(stderr, "Error: progress frequency must be positive.\n");
+                return 1;
+            }
+            progress_freq = freq;
         } else if (strcmp(argv[i], "--time-file") == 0 && i + 1 < argc) {
             time_file = argv[++i];
         } else if (strcmp(argv[i], "--verify") == 0) {
@@ -147,9 +156,9 @@ int main(int argc, char* argv[]) {
 
     bool show_progress = progress_flag && !quiet_flag;  // Display only when not in silent mode and progress is enabled.
     #ifdef ENABLE_BLOCK_FACTORIAL
-    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size, show_progress);
+    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size, show_progress, progress_freq);
     #else
-    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, show_progress);
+    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, show_progress, progress_freq);
     #endif
     double end_time = omp_get_wtime();
 

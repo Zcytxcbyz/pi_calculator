@@ -140,6 +140,8 @@ Run the program with the following options:
 
 - `--progress`: Show progress during long calculations (disabled by --quiet).
 
+- `--progress-freq <num>`: Set the number of iterations between progress updates (default: 1000). Only effective when `--progress` is enabled.
+
 - `--time-file <filename>`: Write computation time to a separate file (even with --quiet).
 
 - `--verify`: Verify the first 1000 digits of the computed result against a known reference. Exits with code 2 if verification fails.

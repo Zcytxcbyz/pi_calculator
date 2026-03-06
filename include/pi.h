@@ -14,7 +14,8 @@
 #endif
 
 // Calculate PI to the specified number of digits
-void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* omp_schedule, int chunk_size VAR_BLOCK_SIZE, bool show_progress);
+void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* omp_schedule,
+    int chunk_size VAR_BLOCK_SIZE, bool show_progress, int progress_freq);
 
 // Write the PI value to file
 void write_pi_to_file(const mpf_t pi, unsigned long digits, const char* filename, double computation_time,

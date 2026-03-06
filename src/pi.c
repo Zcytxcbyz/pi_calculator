@@ -215,7 +215,8 @@ void calculate_term(unsigned long k, ThreadVariables* var) {
 }
 
 // Chudnovsky algorithm calculates PI
-void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* omp_schedule, int chunk_size VAR_BLOCK_SIZE, bool show_progress) {
+void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* omp_schedule,
+    int chunk_size VAR_BLOCK_SIZE, bool show_progress, int progress_freq) {
     /* completed_count Used solely for progress display;
      * Does not increment if progress is disabled, avoiding atomic operation overhead */
     unsigned long long completed_count = 0;
@@ -294,7 +295,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
         mpf_init_set_ui(thread_S[i], 0);
     }
 
-    #pragma omp parallel shared(S, thread_S, CONST_X_BASE, CONST_L_K, CONST_L_ADD, completed_count, show_progress)
+    #pragma omp parallel shared(S, thread_S, CONST_X_BASE, CONST_L_K, CONST_L_ADD, completed_count, show_progress, progress_freq)
     {
         int tid = omp_get_thread_num();  // Get the current thread ID
         ThreadVariables var; // Thread private variables
@@ -345,7 +346,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
                 #pragma omp atomic
                 ++completed_count;
 
-                if (completed_count % 1000 == 0 && tid == 0) {
+                if (completed_count % progress_freq == 0 && tid == 0) {
                     // Use the thread ID to determine execution on the main thread
                     fprintf(stderr, "\rProgress: %.2f%%", (double) completed_count / iterations * 100);
                     fflush(stderr);
