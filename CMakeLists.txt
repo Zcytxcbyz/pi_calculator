@@ -24,7 +24,12 @@ execute_process(
 if(NOT GIT_VERSION)
     set(GIT_VERSION "unknown")
 endif()
-string(REGEX REPLACE "-dirty$" "" GIT_VERSION_CLEAN "${GIT_VERSION}")
+
+# Extract the major version number (formatted as v1.6, v1.0.0, etc.), removing any redundant commit hash and -dirty flag.
+string(REGEX MATCH "^v[0-9]+\\.[0-9]+(\\.[0-9]+)?" GIT_VERSION_CLEAN "${GIT_VERSION}")
+if(NOT GIT_VERSION_CLEAN)
+    set(GIT_VERSION_CLEAN "${GIT_VERSION}")  # If no match is found, fall back to the original value.
+endif()
 add_compile_definitions(PROJECT_VERSION="${GIT_VERSION_CLEAN}")
 message(STATUS "Project version: ${GIT_VERSION_CLEAN} (original: ${GIT_VERSION})")
 
@@ -43,6 +48,13 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /O2 /DNDEBUG /fp:fast /fopenmp")
     else()
         set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG -ffast-math -fopenmp")
+    endif()
+
+    # Automatically strip debugging information
+    if(MSVC)
+        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG-")
+    else()
+        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} -s")
     endif()
 
     # SIMD instruction set optimization

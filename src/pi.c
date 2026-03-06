@@ -220,6 +220,12 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
      * Does not increment if progress is disabled, avoiding atomic operation overhead */
     unsigned long long completed_count = 0;
 
+    // Thread Count Legitimacy Verification
+    if (num_threads <= 0) {
+        fprintf(stderr, "Warning: invalid thread count (%d), using 1 thread.\n", num_threads);
+        num_threads = 1;
+    }
+
     // Set sufficient precision
     mpf_set_default_prec((digits + 2) * log2(10));
 
@@ -278,6 +284,12 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
     // Array Block Reduction: Assigns each thread an independent segment and slot
     int max_threads = num_threads;  // Number of threads actually used (specified by the user)
     mpf_t* thread_S = (mpf_t*) malloc(max_threads * sizeof(mpf_t));
+    if (!thread_S) {
+        fprintf(stderr, "Error: Failed to allocate thread_S array\n");
+        clean_constants();
+        mpf_clears(C, S, temp, NULL);
+        exit(1);
+    }
     for (int i = 0; i < max_threads; i++) {
         mpf_init_set_ui(thread_S[i], 0);
     }
@@ -332,12 +344,10 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char* o
             if (show_progress) {
                 #pragma omp atomic
                 ++completed_count;
-            }
 
-            if (show_progress && (completed_count % 1000 == 0)) {
-                // Use the thread ID to determine execution on the main thread
-                if (tid == 0) {
-                    fprintf(stderr, "\rProgress: %.2f%%", (double)completed_count / iterations * 100);
+                if (completed_count % 1000 == 0 && tid == 0) {
+                    // Use the thread ID to determine execution on the main thread
+                    fprintf(stderr, "\rProgress: %.2f%%", (double) completed_count / iterations * 100);
                     fflush(stderr);
                 }
             }
