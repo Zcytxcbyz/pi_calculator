@@ -186,14 +186,6 @@ int main(int argc, char* argv[]) {
         checkpoint_enable, checkpoint_freq, checkpoint_file, checkpoint_verbose);
     #endif
 
-    /* This code is deprecated
-    #ifdef ENABLE_BLOCK_FACTORIAL
-    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size, show_progress, progress_freq);
-    #else
-    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, show_progress, progress_freq);
-    #endif
-    */
-
     double end_time = omp_get_wtime();
 
     double total_time = end_time - start_time;
