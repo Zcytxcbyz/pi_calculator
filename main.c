@@ -172,25 +172,15 @@ int main(int argc, char* argv[]) {
 
     bool show_progress = progress_flag && !quiet_flag;  // Display only when not in silent mode and progress is enabled.
 
-    if (checkpoint_enable) {
-        #ifdef ENABLE_BLOCK_FACTORIAL
-        calculate_pi_checkpoint(pi, digits, num_threads, omp_schedule, chunk_size, block_size,
-                                show_progress, progress_freq, quiet_flag,
-                                checkpoint_freq, checkpoint_file);
-        #else
-        calculate_pi_checkpoint(pi, digits, num_threads, omp_schedule, chunk_size,
-                                show_progress, progress_freq, quiet_flag,
-                                checkpoint_freq, checkpoint_file);
-        #endif
-    } else {
-        #ifdef ENABLE_BLOCK_FACTORIAL
-        calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size,
-                     show_progress, progress_freq);
-        #else
-        calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size,
-                     show_progress, progress_freq);
-        #endif
-    }
+    #ifdef ENABLE_BLOCK_FACTORIAL
+    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size,
+        show_progress, progress_freq, quiet_flag,
+        checkpoint_enable, checkpoint_freq, checkpoint_file);
+    #else
+    calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size,
+        show_progress, progress_freq, quiet_flag,
+        checkpoint_enable, checkpoint_freq, checkpoint_file);
+    #endif
 
     /* This code is deprecated
     #ifdef ENABLE_BLOCK_FACTORIAL
