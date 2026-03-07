@@ -741,3 +741,280 @@ void calculate_pi_checkpoint(mpf_t pi, unsigned long digits, int num_threads, co
     free(thread_S);
     mpf_clears(C, global_S, temp, NULL);
 }
+
+// This function is a merge of the differences between calculate_pi and calculate_pi_checkpoint to facilitate subsequent refactoring.
+// Chudnovsky algorithm calculates PI
+void calculate_pi_checkpoint_diff(mpf_t pi, unsigned long digits, int num_threads, const char *omp_schedule,
+                                  int chunk_size VAR_BLOCK_SIZE, bool show_progress, int progress_freq,
+                                  bool quiet_flag, unsigned long checkpoint_freq, const char *checkpoint_file) {
+    /* completed_count Used solely for progress display;
+     * Does not increment if progress is disabled, avoiding atomic operation overhead */
+    unsigned long long completed_count = 0;
+
+    // Thread Count Legitimacy Verification
+    if (num_threads <= 0) {
+        fprintf(stderr, "Warning: invalid thread count (%d), using 1 thread.\n", num_threads);
+        num_threads = 1;
+    }
+
+    // Set sufficient precision
+    mpf_set_default_prec((digits + 2) * log2(10));
+
+    // Original S changed to global_S
+    mpf_t C, global_S, temp;
+
+    // Initialize variable
+    mpf_inits(C, temp, NULL);
+    mpf_init_set_ui(global_S, 0);
+
+    // Constant C = 426880 * sqrt(10005)
+    mpf_set_ui(C, 426880);
+    mpf_sqrt_ui(temp, 10005);
+    mpf_mul(C, C, temp);
+
+    // Calculate the required number of iterations (empirical formula)
+    unsigned long iterations = (digits / 14) + 1;
+
+    // ------------------ New code begins ---------------------
+    if (checkpoint_freq < 100 && !quiet_flag) {
+        fprintf(
+            stderr,
+            "Warning: checkpoint_freq is very small (%lu). This may cause frequent I/O and significantly slow down the calculation.\n",
+            checkpoint_freq);
+    }
+
+    // Checkpoint Recovery
+    unsigned long start_k = 0;
+
+    uint32_t saved_threads = 0, saved_flags = 0, current_flags = 0;
+
+    // Check compilation option flags
+    #ifdef ENABLE_CACHE
+    current_flags |= CHECKPOINT_FLAG_CACHE;
+    #endif
+    #ifdef ENABLE_BLOCK_FACTORIAL
+    current_flags |= CHECKPOINT_FLAG_BLOCK_FACTORIAL;
+    #endif
+
+    int ret = load_checkpoint(checkpoint_file, &start_k, global_S, digits,
+                              &saved_threads, &saved_flags, quiet_flag);
+    if (ret == 0) {
+        if (!quiet_flag) {
+            printf("Resuming from iteration %lu (%.2f%%)\n",
+                   start_k, (double) start_k / iterations * 100);
+        }
+        // Optional warning: Thread count or compilation options do not match
+        if (saved_threads != (uint32_t) num_threads && !quiet_flag) {
+            fprintf(
+                stderr,
+                "Warning: thread count mismatch (saved=%u, current=%d). Performance may be degraded due to load imbalance and cache inefficiency.\n",
+                saved_threads, num_threads);
+        }
+
+        if (saved_flags != current_flags && !quiet_flag) {
+            fprintf(
+                stderr,
+                "Warning: compilation flags mismatch (saved=0x%x, current=0x%x). Performance may be affected.\n",
+                saved_flags, current_flags);
+        }
+    } else if (ret == -1) {
+        if (!quiet_flag) printf("No checkpoint found, starting from 0.\n");
+    } else {
+        if (!quiet_flag) fprintf(stderr, "Warning: Checkpoint file invalid, starting from 0.\n");
+        start_k = 0;
+        mpf_set_ui(global_S, 0);
+    }
+    // ------------------ New code ends   ---------------------
+
+    // Set the number of OpenMP threads
+    omp_set_num_threads(num_threads);
+
+    // Set OpenMP schedule type and chunk size
+    omp_sched_t schedule_type;
+    if (strcmp(omp_schedule, "static") == 0) {
+        schedule_type = omp_sched_static;
+    } else if (strcmp(omp_schedule, "dynamic") == 0) {
+        schedule_type = omp_sched_dynamic;
+    } else {
+        // Default to "guided"
+        schedule_type = omp_sched_guided;
+    }
+    omp_set_schedule(schedule_type, chunk_size);
+
+    #ifdef DEBUG
+    const char* debug_schedule_name;
+    omp_sched_t debug_schedule_id;
+    int debug_chunk_size;
+    omp_get_schedule(&debug_schedule_id, &debug_chunk_size);
+    switch (debug_schedule_id) {
+        case omp_sched_static:
+            debug_schedule_name = "static";
+            break;
+        case omp_sched_dynamic:
+            debug_schedule_name = "dynamic";
+            break;
+        case omp_sched_guided:
+            debug_schedule_name = "guided";
+            break;
+        default:
+            debug_schedule_name = 0;
+    }
+    printf("OpenMP schedule type: %s, chunk size: %d\n", debug_schedule_name, debug_chunk_size);
+    #endif
+
+    // Initialize global constants
+    init_constants();
+
+    // Array Block Reduction: Assigns each thread an independent segment and slot
+    int max_threads = num_threads; // Number of threads actually used (specified by the user)
+    mpf_t* thread_S = (mpf_t*) malloc(max_threads * sizeof(mpf_t));
+    if (!thread_S) {
+        fprintf(stderr, "Error: Failed to allocate thread_S array\n");
+        clean_constants();
+        mpf_clears(C, global_S, temp, NULL);
+        exit(1);
+    }
+    for (int i = 0; i < max_threads; i++) {
+        mpf_init_set_ui(thread_S[i], 0);
+    }
+
+    // ------------------ New code begins ---------------------
+    unsigned long current_k = start_k;
+    while (current_k < iterations) {
+        unsigned long block_end = current_k + checkpoint_freq;
+        if (block_end > iterations) block_end = iterations;
+
+        // Reset thread segments and arrays (zeroed before each block begins)
+        for (int i = 0; i < max_threads; i++) {
+            mpf_set_ui(thread_S[i], 0);
+        }
+
+        // ------------------ New code ends   ---------------------
+
+        #pragma omp parallel shared(global_S, thread_S, CONST_X_BASE, CONST_L_K, CONST_L_ADD, completed_count, show_progress, progress_freq)
+        {
+            int tid = omp_get_thread_num(); // Get the current thread ID
+            ThreadVariables var; // Thread private variables
+            init_thread_variables(&var); // Initialize thread variables
+            #ifdef ENABLE_BLOCK_FACTORIAL
+            var.block_size = block_size; // Set block size for block factorial
+            #endif
+
+            #ifdef ENABLE_CACHE
+            ThreadCache cache; // Thread var cache
+            init_thread_cache(&cache); // Initialize thread cache
+            #endif
+
+            #pragma omp for schedule(runtime)
+            // calculate_pi: for (unsigned long k = 0; k < iterations; k++) {
+            for (unsigned long k = current_k; k < block_end; k++) {
+                mpz_set_ui(var.K, k);
+
+                // Calculate M = (6k)! / ((3k)! * (k!)^3)
+                #ifdef ENABLE_CACHE
+                calculate_M(k, &var, &cache);
+                #else
+                calculate_M(k, &var);
+                #endif
+
+                // Calculate L = 545140134k + 13591409
+                calculate_L(k, &var);
+
+                // Calculate X = (-262537412640768000)^k
+                #ifdef ENABLE_CACHE
+                calculate_X(k, &var, &cache);
+                #else
+                calculate_X(k, &var);
+                #endif
+
+                // Calculate the current item: term = M * L / X
+                calculate_term(k, &var);
+
+                // Accumulate to thread private variables
+                mpf_add(var.S, var.S, var.term);
+
+                #ifdef ENABLE_CACHE
+                // Set cache variables
+                set_cache(k, &cache, &var);
+                #endif
+
+                // Progress display: Atomic counter update (only when progress is enabled)
+                if (show_progress) {
+                    #pragma omp atomic
+                    ++completed_count;
+
+                    if (completed_count % progress_freq == 0 && tid == 0) {
+                        // Use the thread ID to determine execution on the main thread
+                        fprintf(stderr, "\rProgress: %.2f%%", (double) completed_count / iterations * 100);
+                        fflush(stderr);
+                    }
+                }
+            }
+
+            /* This code is deprecated
+            // Merge thread private variables into global variables
+            #pragma omp critical
+            {
+                mpf_add(S, S, var.S);
+            }
+            */
+
+
+            // Store the segment of this thread into the corresponding array slot
+            mpf_set(thread_S[tid], var.S);
+
+            clean_thread_variables(&var); // Clean up thread variables
+
+            #ifdef ENABLE_CACHE
+            clean_thread_cache(&cache); // Clean up thread cache
+            #endif
+        } // End of parallel section
+
+        /* calculate_pi:
+            // The main thread merges all parts
+            for (int i = 0; i < max_threads; i++) {
+                mpf_add(global_S, global_S, thread_S[i]);
+                mpf_clear(thread_S[i]);
+            }
+            free(thread_S);
+        */
+
+        // The main thread merges all parts
+        for (int i = 0; i < max_threads; i++) {
+            mpf_add(global_S, global_S, thread_S[i]);
+        }
+
+        // ------------------ New code begins ---------------------
+        current_k = block_end;
+
+        // Save checkpoint
+
+        if (save_checkpoint(checkpoint_file, current_k, global_S, digits,
+                            (uint32_t) num_threads, current_flags, quiet_flag) != 0) {
+            if (!quiet_flag) fprintf(stderr, "Warning: Failed to save checkpoint\n");
+        } else if (show_progress && !quiet_flag) {
+            fprintf(stderr, "\nCheckpoint saved at iteration %lu\n", current_k);
+        }
+    } // End of while section
+    // ------------------ New code ends   ---------------------
+
+    // Calculate PI = C / S
+    mpf_div(pi, C, global_S);
+
+    // Clean up global constants
+    clean_constants();
+
+    // Clean the thread_S array
+    for (int i = 0; i < max_threads; i++) {
+        mpf_clear(thread_S[i]);
+    }
+    free(thread_S);
+
+    // Clean up variables
+    mpf_clears(C, global_S, temp, NULL);
+
+    #ifdef DEBUG
+    printf("Cache hit count: %lu\n", cache_hit_count);
+    printf("Cache hit ratio: %.2f%%\n", (double) cache_hit_count / (iterations * 2) * 100);
+    #endif
+}
