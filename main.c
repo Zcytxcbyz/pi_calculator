@@ -30,6 +30,7 @@ void print_usage(const char* program_name) {
     printf("  --checkpoint-enable               Enable checkpoint/restart functionality\n");
     printf("  --checkpoint-freq <N>             Save checkpoint every N iterations (default: 1000)\n");
     printf("  --checkpoint-file <filename>      Path to checkpoint file (default: pi_checkpoint.dat)\n");
+    printf("  --checkpoint-verbose              Print a message each time a checkpoint is saved\n");
     printf("  -v(--version)                     Show program version and exit\n");
     printf("  -h(--help)                        Show this help message\n");
 }
@@ -56,6 +57,7 @@ int main(int argc, char* argv[]) {
     bool checkpoint_enable = false;                 // flag for --checkpoint-enable
     unsigned long checkpoint_freq = 1000;           // By default, save every 1000 iterations.
     char* checkpoint_file = "pi_checkpoint.dat";    // Checkpoint File
+    bool checkpoint_verbose = false;                // Print checkpoint saved message
 
     // Analyze command-line parameters
     for (int i = 1; i < argc; i++) {
@@ -134,6 +136,8 @@ int main(int argc, char* argv[]) {
             }
         } else if (strcmp(argv[i], "--checkpoint-file") == 0 && i + 1 < argc) {
             checkpoint_file = argv[++i];
+        } else if (strcmp(argv[i], "--checkpoint-verbose") == 0) {
+            checkpoint_verbose = true;
         } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
             printf("pi_calculator version %s\n", PROJECT_VERSION);
             return 0;
@@ -175,11 +179,11 @@ int main(int argc, char* argv[]) {
     #ifdef ENABLE_BLOCK_FACTORIAL
     calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size, block_size,
         show_progress, progress_freq, quiet_flag,
-        checkpoint_enable, checkpoint_freq, checkpoint_file);
+        checkpoint_enable, checkpoint_freq, checkpoint_file, checkpoint_verbose);
     #else
     calculate_pi(pi, digits, num_threads, omp_schedule, chunk_size,
         show_progress, progress_freq, quiet_flag,
-        checkpoint_enable, checkpoint_freq, checkpoint_file);
+        checkpoint_enable, checkpoint_freq, checkpoint_file, checkpoint_verbose);
     #endif
 
     /* This code is deprecated

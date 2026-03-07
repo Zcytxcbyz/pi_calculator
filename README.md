@@ -152,6 +152,8 @@ Run the program with the following options:
 
 - `--checkpoint-file <filename>`: Path to checkpoint file (default: pi_checkpoint.dat)
 
+- `--checkpoint-verbose`: Print a message each time a checkpoint is saved
+
 - `-v(--version)`: Display the program version and exit.
 
 - `-h(--help)`: Display the help message.

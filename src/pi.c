@@ -218,7 +218,7 @@ void calculate_term(unsigned long k, ThreadVariables* var) {
 // Chudnovsky algorithm calculates PI
 void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char *omp_schedule,
     int chunk_size VAR_BLOCK_SIZE, bool show_progress, int progress_freq, bool quiet_flag,
-    bool enable_checkpoint, unsigned long checkpoint_freq, const char *checkpoint_file) {
+    bool enable_checkpoint, unsigned long checkpoint_freq, const char *checkpoint_file, bool checkpoint_verbose) {
     /* completed_count Used solely for progress display;
      * Does not increment if progress is disabled, avoiding atomic operation overhead */
     unsigned long long completed_count = 0;
@@ -469,7 +469,7 @@ void calculate_pi(mpf_t pi, unsigned long digits, int num_threads, const char *o
             if (save_checkpoint(checkpoint_file, current_k, global_S, digits,
                                 (uint32_t) num_threads, current_flags, quiet_flag) != 0) {
                 if (!quiet_flag) fprintf(stderr, "Warning: Failed to save checkpoint\n");
-            } else if (show_progress && !quiet_flag) {
+            } else if (checkpoint_verbose && !quiet_flag) {
                 fprintf(stderr, "\nCheckpoint saved at iteration %lu\n", current_k);
             }
         } else {
