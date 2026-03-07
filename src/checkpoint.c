@@ -1,3 +1,7 @@
+// Note: This implementation relies on GMP's internal structure (e.g., _mp_exp, _mp_size, _mp_d).
+// If you upgrade GMP to a version that changes these internal layouts, checkpoint files may become incompatible.
+// It is recommended to regenerate checkpoint files after upgrading GMP.
+
 #include "checkpoint.h"
 #include <math.h>
 #include <string.h>
@@ -66,6 +70,12 @@ int save_checkpoint(const char* filename, unsigned long completed_k, const mpf_t
     header.flags = flags;
     memset(header.future, 0, sizeof(header.future));
 
+    // Write platform information
+    uint32_t ulong_size = sizeof(unsigned long);
+    uint32_t long_size = sizeof(long);
+    memcpy(header.future, &ulong_size, 4);
+    memcpy(header.future + 4, &long_size, 4);
+
     if (fwrite(&header, sizeof(header), 1, fp) != 1) {
         if (!quiet_flag) perror("Warning: Failed to write checkpoint header");
         fclose(fp);
@@ -112,6 +122,21 @@ int load_checkpoint(const char* filename, unsigned long* completed_k, mpf_t glob
         if (!quiet_flag) fprintf(stderr, "Warning: Invalid checkpoint file (magic/version mismatch)\n");
         fclose(fp);
         return -2;
+    }
+
+    // Verify the current platform
+    uint32_t saved_ulong_size, saved_long_size;
+    memcpy(&saved_ulong_size, header.future, 4);
+    memcpy(&saved_long_size, header.future + 4, 4);
+
+    if (saved_ulong_size != sizeof(unsigned long) || saved_long_size != sizeof(long)) {
+        if (!quiet_flag) {
+            fprintf(stderr,
+                    "Warning: Checkpoint file platform mismatch (saved ulong size=%u, current=%zu; "
+                    "saved long size=%u, current=%zu). Recovery may fail.\n",
+                    saved_ulong_size, sizeof(unsigned long),
+                    saved_long_size, sizeof(long));
+        }
     }
 
     // Verify that the number of digits matches
