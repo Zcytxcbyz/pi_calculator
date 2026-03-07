@@ -745,8 +745,8 @@ void calculate_pi_checkpoint(mpf_t pi, unsigned long digits, int num_threads, co
 // This function is a merge of the differences between calculate_pi and calculate_pi_checkpoint to facilitate subsequent refactoring.
 // Chudnovsky algorithm calculates PI
 void calculate_pi_checkpoint_diff(mpf_t pi, unsigned long digits, int num_threads, const char *omp_schedule,
-                                  int chunk_size VAR_BLOCK_SIZE, bool show_progress, int progress_freq,
-                                  bool quiet_flag, unsigned long checkpoint_freq, const char *checkpoint_file) {
+                                  int chunk_size VAR_BLOCK_SIZE, bool show_progress, int progress_freq, bool quiet_flag,
+                                  bool enable_checkpoint, unsigned long checkpoint_freq, const char *checkpoint_file) {
     /* completed_count Used solely for progress display;
      * Does not increment if progress is disabled, avoiding atomic operation overhead */
     unsigned long long completed_count = 0;
@@ -775,56 +775,57 @@ void calculate_pi_checkpoint_diff(mpf_t pi, unsigned long digits, int num_thread
     // Calculate the required number of iterations (empirical formula)
     unsigned long iterations = (digits / 14) + 1;
 
-    // ------------------ New code begins ---------------------
-    if (checkpoint_freq < 100 && !quiet_flag) {
-        fprintf(
-            stderr,
-            "Warning: checkpoint_freq is very small (%lu). This may cause frequent I/O and significantly slow down the calculation.\n",
-            checkpoint_freq);
-    }
-
+    // ------------------ Checkpoint code begins ---------------------
     // Checkpoint Recovery
     unsigned long start_k = 0;
-
     uint32_t saved_threads = 0, saved_flags = 0, current_flags = 0;
 
-    // Check compilation option flags
-    #ifdef ENABLE_CACHE
-    current_flags |= CHECKPOINT_FLAG_CACHE;
-    #endif
-    #ifdef ENABLE_BLOCK_FACTORIAL
-    current_flags |= CHECKPOINT_FLAG_BLOCK_FACTORIAL;
-    #endif
-
-    int ret = load_checkpoint(checkpoint_file, &start_k, global_S, digits,
-                              &saved_threads, &saved_flags, quiet_flag);
-    if (ret == 0) {
-        if (!quiet_flag) {
-            printf("Resuming from iteration %lu (%.2f%%)\n",
-                   start_k, (double) start_k / iterations * 100);
-        }
-        // Optional warning: Thread count or compilation options do not match
-        if (saved_threads != (uint32_t) num_threads && !quiet_flag) {
+    if (enable_checkpoint) {
+        if (checkpoint_freq < 100 && !quiet_flag) {
             fprintf(
                 stderr,
-                "Warning: thread count mismatch (saved=%u, current=%d). Performance may be degraded due to load imbalance and cache inefficiency.\n",
-                saved_threads, num_threads);
+                "Warning: checkpoint_freq is very small (%lu). This may cause frequent I/O and significantly slow down the calculation.\n",
+                checkpoint_freq);
         }
 
-        if (saved_flags != current_flags && !quiet_flag) {
-            fprintf(
-                stderr,
-                "Warning: compilation flags mismatch (saved=0x%x, current=0x%x). Performance may be affected.\n",
-                saved_flags, current_flags);
+        // Check compilation option flags
+        #ifdef ENABLE_CACHE
+        current_flags |= CHECKPOINT_FLAG_CACHE;
+        #endif
+        #ifdef ENABLE_BLOCK_FACTORIAL
+        current_flags |= CHECKPOINT_FLAG_BLOCK_FACTORIAL;
+        #endif
+
+        int ret = load_checkpoint(checkpoint_file, &start_k, global_S, digits,
+                                  &saved_threads, &saved_flags, quiet_flag);
+        if (ret == 0) {
+            if (!quiet_flag) {
+                printf("Resuming from iteration %lu (%.2f%%)\n",
+                       start_k, (double) start_k / iterations * 100);
+            }
+            // Optional warning: Thread count or compilation options do not match
+            if (saved_threads != (uint32_t) num_threads && !quiet_flag) {
+                fprintf(
+                    stderr,
+                    "Warning: thread count mismatch (saved=%u, current=%d). Performance may be degraded due to load imbalance and cache inefficiency.\n",
+                    saved_threads, num_threads);
+            }
+
+            if (saved_flags != current_flags && !quiet_flag) {
+                fprintf(
+                    stderr,
+                    "Warning: compilation flags mismatch (saved=0x%x, current=0x%x). Performance may be affected.\n",
+                    saved_flags, current_flags);
+            }
+        } else if (ret == -1) {
+            if (!quiet_flag) printf("No checkpoint found, starting from 0.\n");
+        } else {
+            if (!quiet_flag) fprintf(stderr, "Warning: Checkpoint file invalid, starting from 0.\n");
+            start_k = 0;
+            mpf_set_ui(global_S, 0);
         }
-    } else if (ret == -1) {
-        if (!quiet_flag) printf("No checkpoint found, starting from 0.\n");
-    } else {
-        if (!quiet_flag) fprintf(stderr, "Warning: Checkpoint file invalid, starting from 0.\n");
-        start_k = 0;
-        mpf_set_ui(global_S, 0);
     }
-    // ------------------ New code ends   ---------------------
+    // ------------------ Checkpoint code ends   ---------------------
 
     // Set the number of OpenMP threads
     omp_set_num_threads(num_threads);
@@ -878,18 +879,21 @@ void calculate_pi_checkpoint_diff(mpf_t pi, unsigned long digits, int num_thread
         mpf_init_set_ui(thread_S[i], 0);
     }
 
-    // ------------------ New code begins ---------------------
-    unsigned long current_k = start_k;
+    // ------------------ Checkpoint code begins ---------------------
+    unsigned long current_k = enable_checkpoint ? start_k : 0;
     while (current_k < iterations) {
-        unsigned long block_end = current_k + checkpoint_freq;
-        if (block_end > iterations) block_end = iterations;
+        unsigned long block_end = iterations;
+        if (enable_checkpoint) {
+            block_end = current_k + checkpoint_freq;
+            if (block_end > iterations) block_end = iterations;
 
-        // Reset thread segments and arrays (zeroed before each block begins)
-        for (int i = 0; i < max_threads; i++) {
-            mpf_set_ui(thread_S[i], 0);
+            // Reset thread segments and arrays (zeroed before each block begins)
+            for (int i = 0; i < max_threads; i++) {
+                mpf_set_ui(thread_S[i], 0);
+            }
         }
 
-        // ------------------ New code ends   ---------------------
+        // ------------------ Checkpoint code ends   ---------------------
 
         #pragma omp parallel shared(global_S, thread_S, CONST_X_BASE, CONST_L_K, CONST_L_ADD, completed_count, show_progress, progress_freq)
         {
@@ -905,9 +909,9 @@ void calculate_pi_checkpoint_diff(mpf_t pi, unsigned long digits, int num_thread
             init_thread_cache(&cache); // Initialize thread cache
             #endif
 
-            #pragma omp for schedule(runtime)
             // calculate_pi: for (unsigned long k = 0; k < iterations; k++) {
-            for (unsigned long k = current_k; k < block_end; k++) {
+            #pragma omp for schedule(runtime)
+            for (unsigned long k = enable_checkpoint ? current_k : 0; k < block_end; k++) {
                 mpz_set_ui(var.K, k);
 
                 // Calculate M = (6k)! / ((3k)! * (k!)^3)
@@ -984,19 +988,23 @@ void calculate_pi_checkpoint_diff(mpf_t pi, unsigned long digits, int num_thread
             mpf_add(global_S, global_S, thread_S[i]);
         }
 
-        // ------------------ New code begins ---------------------
-        current_k = block_end;
+        // ------------------ Checkpoint code begins ---------------------
+        if (enable_checkpoint) {
+            current_k = block_end;
 
-        // Save checkpoint
+            // Save checkpoint
 
-        if (save_checkpoint(checkpoint_file, current_k, global_S, digits,
-                            (uint32_t) num_threads, current_flags, quiet_flag) != 0) {
-            if (!quiet_flag) fprintf(stderr, "Warning: Failed to save checkpoint\n");
-        } else if (show_progress && !quiet_flag) {
-            fprintf(stderr, "\nCheckpoint saved at iteration %lu\n", current_k);
+            if (save_checkpoint(checkpoint_file, current_k, global_S, digits,
+                                (uint32_t) num_threads, current_flags, quiet_flag) != 0) {
+                if (!quiet_flag) fprintf(stderr, "Warning: Failed to save checkpoint\n");
+            } else if (show_progress && !quiet_flag) {
+                fprintf(stderr, "\nCheckpoint saved at iteration %lu\n", current_k);
+            }
+        } else {
+            break;
         }
     } // End of while section
-    // ------------------ New code ends   ---------------------
+    // ------------------ Checkpoint code ends   ---------------------
 
     // Calculate PI = C / S
     mpf_div(pi, C, global_S);
